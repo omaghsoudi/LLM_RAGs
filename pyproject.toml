@@ -1,5 +1,5 @@
 [project]
-name = "llm-rags"
+name = "omid_llm"
 version = "0.1.0"
 description = "First version of the installer"
 authors = [
@@ -32,8 +32,8 @@ pandas = "^2.2.1"
 ipython = "^8.23.0"
 tensorboard = "^2.16.2"
 
-[tool.poetry.scripts]
-omid-llm = "omid_llm.main:main"
+#[tool.poetry.scripts]
+#omid-llm = "omid_llm.main:main"
 
 
 [build-system]

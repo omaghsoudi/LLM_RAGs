@@ -1,0 +1,9 @@
+hydra:
+    run:
+        dir: ${output_dir}
+
+output_dir: "./"
+version: 1
+defaults:
+    - _self_
+    - module_1: sub_config
