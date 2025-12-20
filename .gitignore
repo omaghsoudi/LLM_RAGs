@@ -113,3 +113,5 @@ Desktop.ini
 # ===============================
 .omid_llm/
 .state/
+
+*.hydra
