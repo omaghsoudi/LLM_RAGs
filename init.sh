@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-REPO_URL="https://github.com/YOUR_GITHUB/omid_llm"
+REPO_URL="https://github.com/omaghsoudi/omid_llm"
 INSTALL_DIR="$HOME/.omid_llm"
 
 echo "🚀 Installing omid_llm..."
