@@ -24,3 +24,6 @@ bash install/post_install.sh
 echo "✅ omid_llm installed successfully"
 echo "👉 Run: cd $INSTALL_DIR"
 echo "👉 Then: poetry run omid-llm"
+
+
+echo "✅ Done"
