@@ -73,7 +73,6 @@ outputs/
 # Model & data artifacts
 # ===============================
 data/
-datasets/
 models/
 checkpoints/
 *.pt
