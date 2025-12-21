@@ -98,20 +98,19 @@ def set_argparse():
 
 def setup_logger(
 	path_to_logger: str = "./log.log",
-	name: str = "main"
 ):
 	"""
 	Setup logger.
 
 	Args:
-		path_to_logger: Path to where saving the log file.
-		name: Name of application.
+		path_to_logger: Path to where saving the log file.=
 
 	Returns:
 		logger: logger to keep track of prints and errors.
 
 	"""
 
+	name = Path(path_to_logger).stem
 	formatter = logging.Formatter(
 		fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'
 	)

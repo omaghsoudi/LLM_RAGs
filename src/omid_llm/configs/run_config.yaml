@@ -3,7 +3,7 @@ hydra:
         dir: ${output_dir}
 
 output_dir: "./"
-version: 1
+version: 0.1.0
 defaults:
     - _self_
     - module_1: sub_config
