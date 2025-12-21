@@ -1,0 +1,39 @@
+# configs/rag_chroma.yaml
+
+experiment_name: "rag_chroma"
+output_dir: ./temp/${experiment_name}
+
+hydra:
+  run:
+    dir: ${output_dir}
+
+version: 1.1.0
+defaults:
+  - _self_
+
+logging:
+  file: "run_hydra.log"
+
+
+chroma:
+  persist_directory: /Users/omidmaghsoudi/github/LLM_RAGs/src/omid_llm/temp/chroma_ingest/chroma
+
+retriever:
+  k: 5
+
+llm:
+  model: mistral
+
+prompt:
+  template: |
+    Answer the question based only on the following context:
+
+    {context}
+
+    ---
+
+    Answer the question based on the above context: {question}
+
+queries:
+  - What is the refund policy?
+  - How do I contact customer support?
