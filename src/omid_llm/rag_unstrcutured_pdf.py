@@ -39,15 +39,15 @@ def run(cfg: DictConfig):
 
     llm = Ollama(model="llama3")
 
-    # chain = RetrievalQA.from_chain_type(
-    #     llm,
-    #     retriever=db.as_retriever()
-    # )
-    #
-    # question = "Can you please summarize the document"
-    # result = chain.invoke({"query": question})
-    #
-    # logger.info(result['result'])
+    chain = RetrievalQA.from_chain_type(
+        llm,
+        retriever=db.as_retriever()
+    )
+
+    question = "Can you please summarize the document"
+    result = chain.invoke({"query": question})
+
+    logger.info(result['result'])
 
 if __name__ == "__main__":
     run()
