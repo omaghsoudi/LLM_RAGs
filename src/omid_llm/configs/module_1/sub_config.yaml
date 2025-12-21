@@ -1,6 +1,0 @@
-name: sub_config
-
-test:
-    _target_: modules.core.print_test
-    text: "text"
-    logger: None

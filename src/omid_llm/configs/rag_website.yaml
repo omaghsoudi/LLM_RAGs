@@ -1,0 +1,35 @@
+output_dir: ./temp
+
+hydra:
+  run:
+    dir: ${output_dir}
+
+version: 1.1.0
+defaults:
+  - _self_
+
+website:
+  url: "https://firstsupport-homecare.com"
+
+text_splitter:
+  chunk_size: 1000
+  chunk_overlap: 200
+
+embeddings:
+  model: "text-embedding-3-large"
+
+retriever:
+  k: 4
+
+llm:
+  model: "gpt-4o"
+  temperature: 0.0
+
+prompt:
+  system: >
+    You are a helpful assistant. Use the following context to answer the question.
+    If the answer is not contained in the context, say you do not know.
+
+questions:
+  - "Explain what is LangSmith"
+  - "Explain Monitoring and A/B Testing in LangSmith"
