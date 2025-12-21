@@ -20,8 +20,7 @@ from langchain_text_splitters import CharacterTextSplitter
     version_base="1.1.0"
 )
 def run(cfg: DictConfig):
-    Path("./logs").mkdir(parents=True, exist_ok=True)
-    logger = setup_logger(path_to_logger=f"./logs/run_hydra.log")
+    logger = setup_logger(path_to_logger="run_hydra.log")
 
     logger.info(OmegaConf.to_yaml(cfg))
 
@@ -40,15 +39,15 @@ def run(cfg: DictConfig):
 
     llm = Ollama(model="llama3")
 
-    chain = RetrievalQA.from_chain_type(
-        llm,
-        retriever=db.as_retriever()
-    )
-
-    question = "Can you please summarize the document"
-    result = chain.invoke({"query": question})
-
-    print(result['result'])
+    # chain = RetrievalQA.from_chain_type(
+    #     llm,
+    #     retriever=db.as_retriever()
+    # )
+    #
+    # question = "Can you please summarize the document"
+    # result = chain.invoke({"query": question})
+    #
+    # logger.info(result['result'])
 
 if __name__ == "__main__":
     run()

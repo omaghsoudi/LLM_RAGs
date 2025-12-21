@@ -109,8 +109,12 @@ def setup_logger(
 		logger: logger to keep track of prints and errors.
 
 	"""
+	# logging.getLogger("hydra").disabled = True
+	# name = Path(path_to_logger).stem
+	# logger = logging.getLogger(name)
 
-	name = Path(path_to_logger).stem
+	logger = logging.getLogger("hydra")
+
 	formatter = logging.Formatter(
 		fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'
 	)
@@ -118,7 +122,6 @@ def setup_logger(
 	handler.setFormatter(formatter)
 	screen_handler = logging.StreamHandler(stream=sys.stdout)
 	screen_handler.setFormatter(formatter)
-	logger = logging.getLogger(name)
 	logger.setLevel(logging.DEBUG)
 	logger.addHandler(handler)
 	logger.addHandler(screen_handler)
