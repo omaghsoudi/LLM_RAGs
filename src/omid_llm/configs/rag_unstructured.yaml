@@ -14,7 +14,7 @@ logging:
 
 documents:
   paths:
-    - "/Users/omidmaghsoudi/github/LLM_RAGs/src/omid_llm/dataset/ai_adoption_framework_whitepaper.pdf"
+    - "/Users/omidmaghsoudi/github/LLM_RAGs/datasets/ai_adoption_framework_whitepaper.pdf"
 
 text_splitter:
   separator: "\n"
