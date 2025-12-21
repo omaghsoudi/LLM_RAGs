@@ -6,6 +6,8 @@ import os
 import pprint
 from dotenv import load_dotenv
 
+from omid_llm.modules.initialize import setup_logger
+
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
@@ -22,14 +24,16 @@ from langchain_core.output_parsers import StrOutputParser
     version_base="1.1.0"
 )
 def run(cfg: DictConfig):
+    logger = setup_logger(path_to_logger=cfg.logging.file)
+
     # --------------------------------------------------
     # Environment
     # --------------------------------------------------
     load_dotenv()
     os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 
-    print("Configuration:")
-    print(OmegaConf.to_yaml(cfg))
+    logger.info("Configuration:")
+    logger.info(OmegaConf.to_yaml(cfg))
 
     # --------------------------------------------------
     # Load website
@@ -106,8 +110,11 @@ def run(cfg: DictConfig):
 
     for question in cfg.questions:
         result = rag_chain.invoke(question)
-        print(f"\nQuestion: {question}")
-        pp.pprint(result)
+        logger.info("Question:")
+        logger.info(question)
+
+        logger.info("Answer:")
+        logger.info(pp.pformat(result))
 
 
 if __name__ == "__main__":

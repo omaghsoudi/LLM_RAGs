@@ -60,6 +60,7 @@ poetry.lock
 logs/
 tmp/
 temp/
+outputs/
 
 # ===============================
 # Environment & secrets

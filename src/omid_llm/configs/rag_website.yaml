@@ -1,4 +1,5 @@
-output_dir: ./temp
+experiment_name: "rag_website"
+output_dir: ./temp/${experiment_name}
 
 hydra:
   run:
@@ -7,6 +8,9 @@ hydra:
 version: 1.1.0
 defaults:
   - _self_
+
+logging:
+  file: "run_hydra.log"
 
 website:
   url: "https://firstsupport-homecare.com"

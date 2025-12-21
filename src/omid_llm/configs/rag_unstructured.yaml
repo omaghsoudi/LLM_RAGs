@@ -1,4 +1,5 @@
-output_dir: ./temp
+experiment_name: "rag_unstructured"
+output_dir: ./temp/${experiment_name}
 
 hydra:
   run:
