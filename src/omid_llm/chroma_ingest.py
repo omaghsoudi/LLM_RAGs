@@ -10,8 +10,16 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
 
-from get_embedding_function import get_embedding_function
 from omid_llm.modules.initialize import setup_logger
+
+from langchain_community.embeddings.ollama import OllamaEmbeddings
+from langchain_community.embeddings.bedrock import BedrockEmbeddings
+def get_embedding_function():
+    # embeddings = BedrockEmbeddings(
+    #     credentials_profile_name="default", region_name="us-east-1"
+    # )
+    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    return embeddings
 
 
 @hydra.main(
