@@ -1,5 +1,5 @@
 experiment_name: "rag_website"
-output_dir: ./temp/${experiment_name}
+output_dir: ./outputs/${experiment_name}
 
 hydra:
   run:

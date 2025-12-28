@@ -1,7 +1,7 @@
 # configs/rag_chroma.yaml
 
 experiment_name: "rag_chroma"
-output_dir: ./temp/${experiment_name}
+output_dir: ./outputs/${experiment_name}
 
 hydra:
   run:
@@ -16,7 +16,7 @@ logging:
 
 
 chroma: # this code needs chroma ingest code running and saving the database in the following directory
-  persist_directory: /Users/omidmaghsoudi/github/LLM_RAGs/src/RAGs/temp/chroma_ingest/chroma
+  persist_directory: /Users/omidmaghsoudi/github/LLM_RAGs/src/RAGs/outputs/chroma_ingest/chroma
 
 retriever:
   k: 5

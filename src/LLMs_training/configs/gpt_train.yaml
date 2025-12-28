@@ -1,0 +1,40 @@
+experiment_name: "gpt2_scratch_training"
+output_dir: ./outputs/${experiment_name}
+
+hydra:
+  run:
+    dir: ${output_dir}
+
+version: 1.1.0
+defaults:
+  - _self_
+
+logging:
+  file: "run_hydra.log"
+
+device:
+  use_cuda: true
+  seed: 123
+
+data:
+  url: "https://raw.githubusercontent.com/rasbt/LLMs-from-scratch/main/ch02/01_main-chapter-code/the-verdict.txt"
+  local_file: "the-verdict.txt"
+  train_ratio: 0.9
+
+model:
+  vocab_size: 50257
+  context_length: 256
+  emb_dim: 768
+  n_heads: 12
+  n_layers: 12
+  drop_rate: 0.1
+  qkv_bias: false
+
+training:
+  learning_rate: 5e-4
+  weight_decay: 0.1
+  batch_size: 2
+  num_epochs: 10
+  eval_freq: 5
+  eval_iter: 1
+  start_context: "Every effort moves you"
