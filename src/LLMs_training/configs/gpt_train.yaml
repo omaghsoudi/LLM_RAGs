@@ -13,13 +13,14 @@ logging:
   file: "run_hydra.log"
 
 device:
-  use_cuda: true
+  use_cuda: auto
   seed: 123
 
 data:
   url: "https://raw.githubusercontent.com/rasbt/LLMs-from-scratch/main/ch02/01_main-chapter-code/the-verdict.txt"
   local_file: ${output_dir}/the-verdict.txt
   train_ratio: 0.9
+  num_workers: 4
 
 model:
   vocab_size: 50257

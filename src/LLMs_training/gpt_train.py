@@ -155,9 +155,9 @@ def main(cfg: DictConfig):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    torch.manual_seed(cfg.seed)
+    torch.manual_seed(cfg.device.seed)
 
-    if cfg.device == "auto":
+    if cfg.device.use_cuda == "auto":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device(cfg.device)
@@ -167,13 +167,13 @@ def main(cfg: DictConfig):
     # ----------------------------
     # Load data
     # ----------------------------
-    if not os.path.exists(cfg.data.file_path):
+    if not os.path.exists(cfg.data.local_file):
         r = requests.get(cfg.data.url, timeout=30)
         r.raise_for_status()
-        with open(cfg.data.file_path, "w", encoding="utf-8") as f:
+        with open(cfg.data.local_file, "w", encoding="utf-8") as f:
             f.write(r.text)
 
-    with open(cfg.data.file_path, "r", encoding="utf-8") as f:
+    with open(cfg.data.local_file, "r", encoding="utf-8") as f:
         text_data = f.read()
 
     split_idx = int(cfg.data.train_ratio * len(text_data))
