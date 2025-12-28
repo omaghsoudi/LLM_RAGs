@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
 
-import os
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
-from RAGs.modules.initialize import setup_logger
+from common_modules.initialize import setup_logger
 
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.llms.ollama import Ollama
 
-from get_embedding_function import get_embedding_function
+
+from langchain_community.embeddings.ollama import OllamaEmbeddings
+
+
+def get_embedding_function():
+    # embeddings = BedrockEmbeddings(
+    #     credentials_profile_name="default", region_name="us-east-1"
+    # )
+    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    return embeddings
+
 
 
 PROMPT_TEMPLATE = """

@@ -18,7 +18,7 @@ device:
 
 data:
   url: "https://raw.githubusercontent.com/rasbt/LLMs-from-scratch/main/ch02/01_main-chapter-code/the-verdict.txt"
-  local_file: "the-verdict.txt"
+  local_file: ${output_dir}/the-verdict.txt
   train_ratio: 0.9
 
 model:

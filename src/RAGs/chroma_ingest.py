@@ -10,10 +10,11 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
 
-from RAGs.modules.initialize import setup_logger
+from common_modules.initialize import setup_logger
 
 from langchain_community.embeddings.ollama import OllamaEmbeddings
-from langchain_community.embeddings.bedrock import BedrockEmbeddings
+
+
 def get_embedding_function():
     # embeddings = BedrockEmbeddings(
     #     credentials_profile_name="default", region_name="us-east-1"

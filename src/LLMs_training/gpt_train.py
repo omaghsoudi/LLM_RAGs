@@ -1,6 +1,3 @@
-# Copyright (c) Sebastian Raschka
-# Hydra-enabled training script
-
 import os
 import requests
 import torch
@@ -16,6 +13,7 @@ from modules.models import (
     generate_text_simple,
 )
 
+from common_modules.initialize import setup_logger
 
 # ---------------------------------------------------------
 # Token helpers
@@ -67,7 +65,7 @@ def evaluate_model(model, train_loader, val_loader, device, eval_iter):
 # ---------------------------------------------------------
 # Text generation helper
 # ---------------------------------------------------------
-def generate_and_print_sample(model, tokenizer, device, start_context):
+def generate_and_print_sample(model, tokenizer, device, start_context, logger):
     model.eval()
     context_size = model.pos_emb.weight.shape[0]
 
@@ -77,7 +75,7 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
             model, encoded, max_new_tokens=50, context_size=context_size
         )
 
-    print(token_ids_to_text(token_ids, tokenizer).replace("\n", " "))
+    logger.info(token_ids_to_text(token_ids, tokenizer).replace("\n", " "))
     model.train()
 
 
@@ -92,6 +90,7 @@ def train_model(
     device,
     cfg,
     tokenizer,
+    logger
 ):
     train_losses, val_losses, tokens_seen = [], [], []
     total_tokens = 0
@@ -115,13 +114,13 @@ def train_model(
                 val_losses.append(val_loss)
                 tokens_seen.append(total_tokens)
 
-                print(
+                logger.info(
                     f"Epoch {epoch+1} | Step {global_step:06d} | "
                     f"Train {train_loss:.3f} | Val {val_loss:.3f}"
                 )
 
         generate_and_print_sample(
-            model, tokenizer, device, cfg.training.start_context
+            model, tokenizer, device, cfg.training.start_context, logger
         )
 
     return train_losses, val_losses, tokens_seen
@@ -147,7 +146,14 @@ def plot_losses(tokens_seen, train_losses, val_losses, out_path="loss.pdf"):
 @hydra.main(version_base="1.3", config_path="configs", config_name="gpt_train")
 def main(cfg: DictConfig):
 
-    print(OmegaConf.to_yaml(cfg))
+    logger = setup_logger(path_to_logger=cfg.logging.file)
+
+    logger.info("Configuration:")
+    logger.info(OmegaConf.to_yaml(cfg))
+
+    output_dir = cfg.output_dir
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     torch.manual_seed(cfg.seed)
 
@@ -155,6 +161,8 @@ def main(cfg: DictConfig):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device(cfg.device)
+
+    logger.info(f"device: {device}")
 
     # ----------------------------
     # Load data
@@ -199,6 +207,8 @@ def main(cfg: DictConfig):
     model = GPTModel(cfg.model)
     model.to(device)
 
+    logger.info(f"model is loaded")
+
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=cfg.training.learning_rate,
@@ -206,6 +216,8 @@ def main(cfg: DictConfig):
     )
 
     tokenizer = tiktoken.get_encoding("gpt2")
+
+    logger.info(f"Start training")
 
     train_losses, val_losses, tokens_seen = train_model(
         model,
@@ -215,11 +227,16 @@ def main(cfg: DictConfig):
         device,
         cfg,
         tokenizer,
+        logger
     )
 
-    plot_losses(tokens_seen, train_losses, val_losses)
+    plot_losses(tokens_seen, train_losses, val_losses, out_path=f"{output_dir}/loss.pdf")
 
-    torch.save(model.state_dict(), "model.pth")
+    torch.save(model.state_dict(), f"{output_dir}/model.pth")
+
+    logger.info(f"model.pth is saved: {output_dir}/model.pth")
+
+    logger.info(f"DONE")
 
 
 if __name__ == "__main__":
