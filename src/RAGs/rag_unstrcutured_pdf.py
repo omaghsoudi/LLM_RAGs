@@ -2,16 +2,15 @@
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
-import os
-import pprint
-from dotenv import load_dotenv
 
-from omid_llm.modules.initialize import setup_logger
+from RAGs.modules.initialize import setup_logger
 
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import WebBaseLoader
+from langchain_community.document_loaders import UnstructuredFileLoader
+from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
+
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import CharacterTextSplitter
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -20,43 +19,41 @@ from langchain_core.output_parsers import StrOutputParser
 
 @hydra.main(
     config_path="configs",
-    config_name="rag_website",
+    config_name="rag_unstructured",
     version_base="1.1.0"
 )
 def run(cfg: DictConfig):
     logger = setup_logger(path_to_logger=cfg.logging.file)
 
-    # --------------------------------------------------
-    # Environment
-    # --------------------------------------------------
-    load_dotenv()
-    os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-
     logger.info("Configuration:")
     logger.info(OmegaConf.to_yaml(cfg))
 
     # --------------------------------------------------
-    # Load website
+    # Load unstructured documents
     # --------------------------------------------------
-    loader = WebBaseLoader(cfg.website.url)
-    docs = loader.load()
+    documents = []
+    for path in cfg.documents.paths:
+        loader = UnstructuredFileLoader(path)
+        documents.extend(loader.load())
 
     # --------------------------------------------------
     # Split documents
     # --------------------------------------------------
-    text_splitter = RecursiveCharacterTextSplitter(
+    text_splitter = CharacterTextSplitter(
+        separator=cfg.text_splitter.separator,
         chunk_size=cfg.text_splitter.chunk_size,
         chunk_overlap=cfg.text_splitter.chunk_overlap
     )
-    splits = text_splitter.split_documents(docs)
+    splits = text_splitter.split_documents(documents)
 
     # --------------------------------------------------
-    # Embeddings + Vector Store
+    # Embeddings
     # --------------------------------------------------
-    embeddings = OpenAIEmbeddings(
-        model=cfg.embeddings.model
-    )
+    embeddings = HuggingFaceEmbeddings()
 
+    # --------------------------------------------------
+    # Vector store
+    # --------------------------------------------------
     vectorstore = FAISS.from_documents(
         documents=splits,
         embedding=embeddings
@@ -67,9 +64,9 @@ def run(cfg: DictConfig):
     )
 
     # --------------------------------------------------
-    # LLM
+    # LLM (Ollama)
     # --------------------------------------------------
-    llm = ChatOpenAI(
+    llm = Ollama(
         model=cfg.llm.model,
         temperature=cfg.llm.temperature
     )
@@ -104,17 +101,13 @@ def run(cfg: DictConfig):
     )
 
     # --------------------------------------------------
-    # Queries
+    # Run questions
     # --------------------------------------------------
-    pp = pprint.PrettyPrinter(indent=4)
-
     for question in cfg.questions:
-        result = rag_chain.invoke(question)
-        logger.info("Question:")
-        logger.info(question)
-
+        logger.info(f"Question: {question}")
+        answer = rag_chain.invoke(question)
         logger.info("Answer:")
-        logger.info(pp.pformat(result))
+        logger.info(answer)
 
 
 if __name__ == "__main__":

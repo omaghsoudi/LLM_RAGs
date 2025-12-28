@@ -4,7 +4,7 @@ import os
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
-from omid_llm.modules.initialize import setup_logger
+from RAGs.modules.initialize import setup_logger
 
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate

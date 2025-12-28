@@ -44,7 +44,7 @@ pandas = "^2.2.1"
 
 
 #[tool.poetry.scripts]
-#omid-llm = "omid_llm.main:main"
+#omid-llm = "RAGs.main:main"
 
 
 [build-system]

@@ -15,8 +15,8 @@ logging:
   file: "run_hydra.log"
 
 
-chroma:
-  persist_directory: /Users/omidmaghsoudi/github/LLM_RAGs/src/omid_llm/temp/chroma_ingest/chroma
+chroma: # this code needs chroma ingest code running and saving the database in the following directory
+  persist_directory: /Users/omidmaghsoudi/github/LLM_RAGs/src/RAGs/temp/chroma_ingest/chroma
 
 retriever:
   k: 5
