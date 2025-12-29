@@ -9,7 +9,7 @@ def assign_check(left, right):
 
 
 
-def load_weights_gpt2(gpt, gpt_hf, n_layers):
+def load_weights_into_gpt(gpt, gpt_hf, n_layers):
     d = gpt_hf.state_dict()
 
     gpt.pos_emb.weight = assign_check(gpt.pos_emb.weight, d["wpe.weight"])

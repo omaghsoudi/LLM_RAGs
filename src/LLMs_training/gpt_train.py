@@ -13,7 +13,7 @@ from modules.models import (
     update_gpt_model_config
 )
 from modules.datasets import create_dataloader
-from modules.weights import load_weights_gpt2
+from modules.weights import load_weights_into_gpt
 
 from common_modules.initialize import setup_logger
 from common_modules.losses import calc_loss_loader, calc_loss_batch
@@ -178,7 +178,8 @@ def main(cfg: DictConfig):
     model.to(device)
 
     if gpt_hf:
-        model = load_weights_gpt2(model, gpt_hf, cfg.model.n_layers)
+        logger.info(f"Loading pretrained model")
+        model = load_weights_into_gpt(model, gpt_hf, cfg.model.n_layers)
 
     logger.info(f"model is loaded")
 
@@ -189,6 +190,19 @@ def main(cfg: DictConfig):
     )
 
     tokenizer = tiktoken.get_encoding(cfg.tiktoken.model_name)
+
+    if cfg.model.fine_tune:
+        assert cfg.model.load_pretrained_hf_model, "fine_tune is set to True, so load_pretrained_hf_model should be set to True"
+        logger.info(f"fine_tune is set to True")
+        for param in model.parameters():
+            param.requires_grad = False
+        model.out_head = torch.nn.Linear(in_features=cfg.model.emb_dim, out_features=cfg.model.num_classes)
+        model.to(device)
+        for param in model.trf_blocks[-1].parameters():
+            param.requires_grad = True
+        for param in model.final_norm.parameters():
+            param.requires_grad = True
+
 
     logger.info(f"Start training")
     train_losses, val_losses, tokens_seen = train_model(

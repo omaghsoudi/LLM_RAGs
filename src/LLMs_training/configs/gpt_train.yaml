@@ -32,6 +32,8 @@ model:
   drop_rate: 0.1
   qkv_bias: False
   load_pretrained_hf_model: true
+  fine_tune: true
+  num_classes: 2
 
 tiktoken:
   model_name: "gpt2"
