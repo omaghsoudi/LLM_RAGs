@@ -20,7 +20,7 @@ from modules.plots import plot_losses_train_val
 from modules.collate_functions import custom_collate_fn
 
 from common_modules.initialize import setup_logger
-from common_modules.losses import calc_loss_loader, calc_loss_batch
+from common_modules.losses import calc_loss_loader, calc_loss_batch, calc_loss_loader_v2
 from common_modules.tokens_helpers import token_ids_to_text, text_to_token_ids
 from common_modules.prompts import InstructionDataset, format_input
 from common_modules.utils import download_and_load_file
@@ -142,9 +142,9 @@ def main(cfg: DictConfig):
         val_data = val_data[:10]
         test_data = test_data[:10]
 
-    logger.info("Training set length:", len(train_data))
-    logger.info("Validation set length:", len(val_data))
-    logger.info("Test set length:", len(test_data))
+    logger.info(f"Training set length: {len(train_data)}")
+    logger.info(f"Validation set length: {len(val_data)}")
+    logger.info(f"Test set length: {len(test_data)}")
     logger.info(50*"-")
 
 
@@ -192,18 +192,6 @@ def main(cfg: DictConfig):
         weight_decay=cfg.training.weight_decay,
     )
 
-    if cfg.model.fine_tune:
-        assert cfg.model.load_pretrained_hf_model, "fine_tune is set to True, so load_pretrained_hf_model should be set to True"
-        logger.info(f"fine_tune is set to True")
-        for param in model.parameters():
-            param.requires_grad = False
-        model.out_head = torch.nn.Linear(in_features=cfg.model.emb_dim, out_features=cfg.model.num_classes)
-        model.to(device)
-        for param in model.trf_blocks[-1].parameters():
-            param.requires_grad = True
-        for param in model.final_norm.parameters():
-            param.requires_grad = True
-
 
     logger.info(f"Start training")
 
@@ -213,8 +201,8 @@ def main(cfg: DictConfig):
     #######################################
     print("Initial losses")
     with torch.no_grad():
-        train_loss = calc_loss_loader(train_loader, model, device, num_batches=5)
-        val_loss = calc_loss_loader(val_loader, model, device, num_batches=5)
+        train_loss = calc_loss_loader_v2(train_loader, model, device, num_batches=5)
+        val_loss = calc_loss_loader_v2(val_loader, model, device, num_batches=5)
 
     print("   Training loss:", train_loss)
     print("   Validation loss:", val_loss)
@@ -246,9 +234,9 @@ def main(cfg: DictConfig):
         token_ids = generate(
             model=model,
             idx=text_to_token_ids(input_text, tokenizer).to(device),
-            max_new_tokens=256,
+            max_new_tokens=cfg.model.context_length,
             context_size=cfg.model.context_length,
-            eos_id=50256
+            eos_id=cfg.model.vocab_size
         )
         generated_text = token_ids_to_text(token_ids, tokenizer)
         response_text = generated_text[len(input_text):].replace("### Response:", "").strip()
