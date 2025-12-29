@@ -2,58 +2,13 @@
 # Source for "Build a Large Language Model From Scratch"
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
 # Code: https://github.com/rasbt/LLMs-from-scratch
-#
-# This file collects all the relevant code that we covered thus far
-# throughout Chapters 2-4.
-# This file can be run as a standalone script.
 
-import tiktoken
 import torch
+import tiktoken
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from transformers import GPT2Model
 
 
-
-class GPTDatasetV1(Dataset):
-    def __init__(self, txt, tokenizer, max_length, stride):
-        self.input_ids = []
-        self.target_ids = []
-
-        # Tokenize the entire text
-        token_ids = tokenizer.encode(txt, allowed_special={"<|endoftext|>"})
-
-        # Use a sliding window to chunk the book into overlapping sequences of max_length
-        for i in range(0, len(token_ids) - max_length, stride):
-            input_chunk = token_ids[i:i + max_length]
-            target_chunk = token_ids[i + 1: i + max_length + 1]
-            self.input_ids.append(torch.tensor(input_chunk))
-            self.target_ids.append(torch.tensor(target_chunk))
-
-    def __len__(self):
-        return len(self.input_ids)
-
-    def __getitem__(self, idx):
-        return self.input_ids[idx], self.target_ids[idx]
-
-
-def create_dataloader_v1(txt, batch_size=4, max_length=256,
-                         stride=128, shuffle=True, drop_last=True, num_workers=0):
-    # Initialize the tokenizer
-    tokenizer = tiktoken.get_encoding("gpt2")
-
-    # Create dataset
-    dataset = GPTDatasetV1(txt, tokenizer, max_length, stride)
-
-    # Create dataloader
-    dataloader = DataLoader(
-        dataset, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last, num_workers=num_workers)
-
-    return dataloader
-
-
-#####################################
-# Chapter 3
-#####################################
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_in, d_out, context_length, dropout, num_heads, qkv_bias=False):
         super().__init__()
@@ -110,9 +65,6 @@ class MultiHeadAttention(nn.Module):
         return context_vec
 
 
-#####################################
-# Chapter 4
-#####################################
 class LayerNorm(nn.Module):
     def __init__(self, emb_dim):
         super().__init__()
@@ -274,3 +226,38 @@ if __name__ == "__main__":
     print("\nOutput:", out)
     print("Output length:", len(out[0]))
     print("Output text:", decoded_text)
+
+
+
+def update_gpt_model_config(cfg):
+    MODEL_NAMES = {
+        "gpt2-small (124M)": "openai-community/gpt2",
+        "gpt2-medium (355M)": "openai-community/gpt2-medium",
+        "gpt2-large (774M)": "openai-community/gpt2-large",
+        "gpt2-xl (1558M)": "openai-community/gpt2-xl"
+    }
+
+    MODEL_CONFIGS = {
+        "gpt2-small (124M)": {
+            "emb_dim": 768, "n_layers": 12, "n_heads": 12, "context_length": 1024, "qkv_bias": True
+        },
+        "gpt2-medium (355M)": {
+            "emb_dim": 1024, "n_layers": 24, "n_heads": 16, "context_length": 1024, "qkv_bias": True
+        },
+        "gpt2-large (774M)": {
+            "emb_dim": 1280, "n_layers": 36, "n_heads": 20, "context_length": 1024, "qkv_bias": True
+        },
+        "gpt2-xl (1558M)": {
+            "emb_dim": 1600, "n_layers": 48, "n_heads": 25, "context_length": 1024, "qkv_bias": True
+        },
+    }
+    chosen_model = cfg.model.model_name
+    cfg.model.update(MODEL_CONFIGS[chosen_model])
+
+    if cfg.model.load_pretrained_hf_model:
+        gpt_hf = GPT2Model.from_pretrained(MODEL_NAMES[chosen_model], cache_dir=f"{cfg.output_dir}/checkpoints")
+        gpt_hf.eval()
+    else:
+        gpt_hf = None
+
+    return cfg, gpt_hf

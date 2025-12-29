@@ -1,7 +1,7 @@
 # Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
 # Source for "Build a Large Language Model From Scratch"
 import pytest
-from gpt_train import main
+from gpt_train_from_scratch import main
 import requests
 
 @pytest.fixture

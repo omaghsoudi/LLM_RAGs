@@ -9,48 +9,16 @@ from omegaconf import DictConfig, OmegaConf
 
 from modules.models import (
     GPTModel,
-    create_dataloader_v1,
     generate_text_simple,
+    update_gpt_model_config
 )
+from modules.datasets import create_dataloader
+from modules.weights import load_weights_gpt2
 
 from common_modules.initialize import setup_logger
+from common_modules.losses import calc_loss_loader, calc_loss_batch
+from common_modules.tokens_helpers import token_ids_to_text, text_to_token_ids
 
-# ---------------------------------------------------------
-# Token helpers
-# ---------------------------------------------------------
-def text_to_token_ids(text, tokenizer):
-    return torch.tensor(tokenizer.encode(text)).unsqueeze(0)
-
-
-def token_ids_to_text(token_ids, tokenizer):
-    return tokenizer.decode(token_ids.squeeze(0).tolist())
-
-
-# ---------------------------------------------------------
-# Loss + evaluation helpers
-# ---------------------------------------------------------
-def calc_loss_batch(input_batch, target_batch, model, device):
-    input_batch, target_batch = input_batch.to(device), target_batch.to(device)
-    logits = model(input_batch)
-    return torch.nn.functional.cross_entropy(
-        logits.flatten(0, 1),
-        target_batch.flatten()
-    )
-
-
-def calc_loss_loader(data_loader, model, device, num_batches=None):
-    if len(data_loader) == 0:
-        return float("nan")
-
-    num_batches = len(data_loader) if num_batches is None else min(num_batches, len(data_loader))
-    total_loss = 0.0
-
-    for i, (x, y) in enumerate(data_loader):
-        if i >= num_batches:
-            break
-        total_loss += calc_loss_batch(x, y, model, device).item()
-
-    return total_loss / num_batches
 
 
 def evaluate_model(model, train_loader, val_loader, device, eval_iter):
@@ -148,12 +116,14 @@ def main(cfg: DictConfig):
 
     logger = setup_logger(path_to_logger=cfg.logging.file)
 
-    logger.info("Configuration:")
-    logger.info(OmegaConf.to_yaml(cfg))
-
     output_dir = cfg.output_dir
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    cfg, gpt_hf = update_gpt_model_config(cfg)
+
+    logger.info("Configuration:")
+    logger.info(OmegaConf.to_yaml(cfg))
 
     torch.manual_seed(cfg.device.seed)
 
@@ -181,7 +151,7 @@ def main(cfg: DictConfig):
     # ----------------------------
     # Dataloaders
     # ----------------------------
-    train_loader = create_dataloader_v1(
+    train_loader = create_dataloader(
         text_data[:split_idx],
         batch_size=cfg.training.batch_size,
         max_length=cfg.model.context_length,
@@ -191,7 +161,7 @@ def main(cfg: DictConfig):
         num_workers=cfg.data.num_workers,
     )
 
-    val_loader = create_dataloader_v1(
+    val_loader = create_dataloader(
         text_data[split_idx:],
         batch_size=cfg.training.batch_size,
         max_length=cfg.model.context_length,
@@ -207,6 +177,9 @@ def main(cfg: DictConfig):
     model = GPTModel(cfg.model)
     model.to(device)
 
+    if gpt_hf:
+        model = load_weights_gpt2(model, gpt_hf, cfg.model.n_layers)
+
     logger.info(f"model is loaded")
 
     optimizer = torch.optim.AdamW(
@@ -215,10 +188,9 @@ def main(cfg: DictConfig):
         weight_decay=cfg.training.weight_decay,
     )
 
-    tokenizer = tiktoken.get_encoding("gpt2")
+    tokenizer = tiktoken.get_encoding(cfg.tiktoken.model_name)
 
     logger.info(f"Start training")
-
     train_losses, val_losses, tokens_seen = train_model(
         model,
         train_loader,
@@ -231,11 +203,8 @@ def main(cfg: DictConfig):
     )
 
     plot_losses(tokens_seen, train_losses, val_losses, out_path=f"{output_dir}/loss.pdf")
-
     torch.save(model.state_dict(), f"{output_dir}/model.pth")
-
     logger.info(f"model.pth is saved: {output_dir}/model.pth")
-
     logger.info(f"DONE")
 
 
