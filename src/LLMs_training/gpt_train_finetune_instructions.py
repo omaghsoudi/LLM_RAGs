@@ -221,7 +221,7 @@ def main(cfg: DictConfig):
 
 
     epochs_tensor = torch.linspace(0, cfg.training.num_epochs, len(train_losses))
-    plot_losses_train_val(epochs_tensor, tokens_seen, train_losses, val_losses)
+    plot_losses_train_val(epochs_tensor, tokens_seen, train_losses, val_losses, f"{output_dir}/loss.pdf")
     print(50 * "-")
 
     #######################################
@@ -243,12 +243,12 @@ def main(cfg: DictConfig):
 
         test_data[i]["model_response"] = response_text
 
-    test_data_path = "instruction-data-with-response-standalone.json"
+    test_data_path = f"{output_dir}/instruction-data-with-response-standalone.json"
     with open(test_data_path, "w") as file:
         json.dump(test_data, file, indent=4)  # "indent" for pretty-printing
     print(f"Responses saved as {test_data_path}")
 
-    file_name = f"{re.sub(r'[ ()]', '', cfg.model.model_name)}-sft-standalone.pth"
+    file_name = f"{output_dir}/{re.sub(r'[ ()]', '', cfg.model.model_name)}-sft-standalone.pth"
     torch.save(model.state_dict(), file_name)
     print(f"Model saved as {file_name}")
 

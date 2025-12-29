@@ -10,7 +10,7 @@ defaults:
   - _self_
 
 logging:
-  file: "run_hydra.log"
+  file: ${output_dir}/run_hydra.log
 
 device:
   use_cuda: auto
