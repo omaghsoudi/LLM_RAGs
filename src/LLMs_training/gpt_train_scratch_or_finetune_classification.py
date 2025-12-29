@@ -2,7 +2,6 @@ import os
 import requests
 import torch
 import tiktoken
-import matplotlib.pyplot as plt
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -14,6 +13,7 @@ from modules.models import (
 )
 from modules.datasets import create_dataloader
 from modules.weights import load_weights_into_gpt
+from modules.plots import plot_losses
 
 from common_modules.initialize import setup_logger
 from common_modules.losses import calc_loss_loader, calc_loss_batch
@@ -95,23 +95,9 @@ def train_model(
 
 
 # ---------------------------------------------------------
-# Plot
-# ---------------------------------------------------------
-def plot_losses(tokens_seen, train_losses, val_losses, out_path="loss.pdf"):
-    fig, ax = plt.subplots()
-    ax.plot(train_losses, label="Train")
-    ax.plot(val_losses, label="Val")
-    ax.set_xlabel("Eval step")
-    ax.set_ylabel("Loss")
-    ax.legend()
-    fig.tight_layout()
-    plt.savefig(out_path)
-
-
-# ---------------------------------------------------------
 # Hydra main
 # ---------------------------------------------------------
-@hydra.main(version_base="1.3", config_path="configs", config_name="gpt_train")
+@hydra.main(version_base="1.3", config_path="configs", config_name="gpt_train_scratch_or_finetune_classification")
 def main(cfg: DictConfig):
 
     logger = setup_logger(path_to_logger=cfg.logging.file)
