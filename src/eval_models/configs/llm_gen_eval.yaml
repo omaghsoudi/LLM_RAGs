@@ -1,0 +1,52 @@
+experiment_name: "llm_gen_eval"
+output_dir: ./outputs/${experiment_name}
+
+hydra:
+  run:
+    dir: ${output_dir}
+
+version: 1.1.0
+defaults:
+  - _self_
+
+logging:
+  file: ${experiment_name}.log
+
+dataset:
+  name: custom
+  task: generation
+  split: validation
+  few_shot_k: 3
+
+random_seed: 42
+
+models:
+  backend: hf            # hf | ollama
+  name: gpt2             # gpt2 | mistral | llama | ollama-name
+  max_new_tokens: 128
+  temperature: 0.7
+  self_consistency_samples: 5
+
+evaluation:
+  free_text:
+    enabled: true
+    metrics:
+      - bleu
+      - rouge
+      - embeddings
+      - bertscore
+      - coverage
+      - entropy
+      - agreement
+
+plotting:
+  enabled: true
+  save_figures: true
+
+
+shots:
+  backend: ollama          # hf | ollama
+  model: llama3:latest       # example
+  temperature: 0.3
+  max_new_tokens: 128
+  cache: true
