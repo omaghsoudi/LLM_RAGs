@@ -72,8 +72,6 @@ outputs/
 # ===============================
 # Model & data artifacts
 # ===============================
-data/
-models/
 checkpoints/
 *.pt
 *.pth
