@@ -8,6 +8,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 import numpy as np
+import pandas as pd
 import torch
 import nltk
 from nltk.corpus import stopwords
@@ -88,8 +89,13 @@ def main(cfg: DictConfig):
 
         logger.info("Aggregated metrics: %s", aggregated)
 
-        plot_metrics_per_sample(metrics_list, cfg, output_dir)
-        plot_aggregated(aggregated, cfg, output_dir)
+        plot_metrics_per_sample(metrics_list, cfg, output_dir, additional_metrics_list=["llm_correctness"])
+        plot_aggregated(aggregated, cfg, output_dir, additional_metrics_list=["llm_correctness"])
+
+        metrics_df = pd.DataFrame(metrics_list)
+        metrics_df.to_csv(os.path.join(output_dir, "metrics.csv"))
+        aggregated_df = pd.DataFrame.from_dict(aggregated, orient="index")
+        aggregated_df.to_csv(os.path.join(output_dir, "aggregated_metrics.csv"))
 
     else:
         output = generate(prompt, cfg, tokenizer, model)
@@ -106,7 +112,12 @@ def main(cfg: DictConfig):
         metrics["llm_correctness"] = round(judge_score, 3)
 
         logger.info("Metrics: %s", metrics)
-        plot_aggregated(metrics, cfg, output_dir)
+        plot_aggregated(metrics, cfg, output_dir, additional_metrics_list=["llm_correctness"])
+
+        metrics_df = pd.DataFrame.from_dict(metrics, orient="index")
+        metrics_df.to_csv(os.path.join(output_dir, "aggregated_metrics.csv"))
+
+
 
 if __name__ == "__main__":
     main()

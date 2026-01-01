@@ -66,17 +66,18 @@ def aggregate_metrics(metrics_list: List[Dict[str, float]]) -> Dict[str, float]:
         for k in METRIC_KEYS
     }
 
-def plot_metrics_per_sample(metrics_list: List[Dict[str, float]], cfg, output_dir: str):
+def plot_metrics_per_sample(metrics_list: List[Dict[str, float]], cfg, output_dir: str, additional_metrics_list: List[str] = []):
     if not cfg.plotting.enabled or len(metrics_list) < 2:
         return
 
+    all_metrics_list = METRIC_KEYS + additional_metrics_list
     os.makedirs(output_dir, exist_ok=True)
 
     x = range(1, len(metrics_list) + 1)
 
     plt.figure(figsize=(8, 5))
 
-    for key in METRIC_KEYS:
+    for key in all_metrics_list:
         values = [m.get(key, 0.0) for m in metrics_list]
         plt.plot(x, values, marker="o", label=key.upper())
 
@@ -96,14 +97,15 @@ def plot_metrics_per_sample(metrics_list: List[Dict[str, float]], cfg, output_di
 
     plt.show()
 
-def plot_aggregated(metrics: Dict[str, float], cfg, output_dir: str):
+def plot_aggregated(metrics: Dict[str, float], cfg, output_dir: str, additional_metrics_list: List[str] = []):
     if not cfg.plotting.enabled:
         return
 
-    values = [metrics[k] for k in METRIC_KEYS]
+    all_metrics_list = METRIC_KEYS + additional_metrics_list
+    values = [metrics[k] for k in all_metrics_list]
 
     plt.figure(figsize=(7, 4))
-    plt.bar(METRIC_KEYS, values)
+    plt.bar(all_metrics_list, values)
     plt.ylim(0, 1)
     plt.ylabel("Score")
     plt.title(f"{cfg.models.name} — Aggregated Metrics")
