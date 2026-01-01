@@ -14,15 +14,17 @@ from nltk.corpus import stopwords
 
 from common_modules.initialize import setup_logger
 
-from modules.few_shots import generate_few_shots
-from modules.evaluation import (
+from eval_models.modules.few_shots import generate_few_shots
+from eval_models.modules.evaluation import (
     aggregate_metrics,
     compute_metrics,
     agreement_score,
     plot_metrics_per_sample,
     plot_aggregated
 )
-from modules.model_related import generate, load_model
+from eval_models.modules.model_related import generate, load_model
+from eval_models.modules.llm_judge import judge_correctness
+
 
 # ------------------------------------------------------------------
 # Setup
@@ -71,6 +73,19 @@ def main(cfg: DictConfig):
         aggregated = aggregate_metrics(metrics_list)
         aggregated["agreement"] = round(agreement_score(outputs), 3)
 
+        judge_scores = [
+            judge_correctness(
+                question,
+                o,
+                references,
+                cfg,
+                tokenizer,
+                model,
+            )
+            for o in outputs
+        ]
+        aggregated["llm_correctness"] = round(float(np.mean(judge_scores)), 3)
+
         logger.info("Aggregated metrics: %s", aggregated)
 
         plot_metrics_per_sample(metrics_list, cfg, output_dir)
@@ -79,6 +94,16 @@ def main(cfg: DictConfig):
     else:
         output = generate(prompt, cfg, tokenizer, model)
         metrics = compute_metrics(output, references)
+
+        judge_score = judge_correctness(
+            question,
+            output,
+            references,
+            cfg,
+            tokenizer,
+            model,
+        )
+        metrics["llm_correctness"] = round(judge_score, 3)
 
         logger.info("Metrics: %s", metrics)
         plot_aggregated(metrics, cfg, output_dir)

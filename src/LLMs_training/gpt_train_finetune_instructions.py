@@ -9,15 +9,15 @@ from torch.utils.data import DataLoader
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-from modules.models import (
+from LLMs_training.modules.models import (
     GPTModel,
     generate_text_simple,
     update_gpt_model_config,
     generate
 )
-from modules.weights import load_weights_into_gpt
-from modules.plots import plot_losses_train_val
-from modules.collate_functions import custom_collate_fn
+from LLMs_training.modules.weights import load_weights_into_gpt
+from LLMs_training.modules.plots import plot_losses_train_val
+from LLMs_training.modules.collate_functions import custom_collate_fn
 
 from common_modules.initialize import setup_logger
 from common_modules.losses import calc_loss_loader, calc_loss_batch, calc_loss_loader_v2
