@@ -25,6 +25,8 @@ from eval_models.modules.evaluation import (
 )
 from eval_models.modules.model_related import generate, load_model
 from eval_models.modules.llm_judge import judge_correctness
+from eval_models.modules.claim_verification import claim_support_metrics
+
 
 
 # ------------------------------------------------------------------
@@ -87,10 +89,27 @@ def main(cfg: DictConfig):
         ]
         aggregated["llm_correctness"] = round(float(np.mean(judge_scores)), 3)
 
+        claim_metrics_list = [
+            claim_support_metrics(
+                o,
+                references,
+                cfg,
+                tokenizer,
+                model,
+            )
+            for o in outputs
+        ]
+        aggregated["claim_support_rate"] = round(
+            float(np.mean([m["claim_support_rate"] for m in claim_metrics_list])), 3
+        )
+        aggregated["hallucination_rate"] = round(
+            float(np.mean([m["hallucination_rate"] for m in claim_metrics_list])), 3
+        )
+
         logger.info("Aggregated metrics: %s", aggregated)
 
-        plot_metrics_per_sample(metrics_list, cfg, output_dir, additional_metrics_list=["llm_correctness"])
-        plot_aggregated(aggregated, cfg, output_dir, additional_metrics_list=["llm_correctness"])
+        plot_metrics_per_sample(metrics_list, cfg, output_dir, additional_metrics_list=["llm_correctness", "claim_support_rate", "hallucination_rate"])
+        plot_aggregated(aggregated, cfg, output_dir, additional_metrics_list=["llm_correctness", "claim_support_rate", "hallucination_rate"])
 
         metrics_df = pd.DataFrame(metrics_list)
         metrics_df.to_csv(os.path.join(output_dir, "metrics.csv"))
@@ -111,8 +130,17 @@ def main(cfg: DictConfig):
         )
         metrics["llm_correctness"] = round(judge_score, 3)
 
+        claim_metrics = claim_support_metrics(
+            output,
+            references,
+            cfg,
+            tokenizer,
+            model,
+        )
+        metrics.update(claim_metrics)
+
         logger.info("Metrics: %s", metrics)
-        plot_aggregated(metrics, cfg, output_dir, additional_metrics_list=["llm_correctness"])
+        plot_aggregated(metrics, cfg, output_dir, additional_metrics_list=["llm_correctness", "claim_support_rate", "hallucination_rate"])
 
         metrics_df = pd.DataFrame.from_dict(metrics, orient="index")
         metrics_df.to_csv(os.path.join(output_dir, "aggregated_metrics.csv"))
