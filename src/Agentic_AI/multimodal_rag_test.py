@@ -13,7 +13,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def main():
     print("\n🚀 Initializing Multimodal RAG System...")
-    rag = MultimodalRAG()
+    rag = MultimodalRAG(chroma_dir  = "./chroma_db", chroma_collection_name = "multimodal_rag")
 
     # --------------------------------------------------
     # TEXT → TEXT

@@ -30,9 +30,6 @@ logger = setup_logger(__name__)
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 LOCAL_LLM_MODEL = "llama3"
 
-chroma_dir  = "./chroma_db"
-chroma_collection_name = "multimodal_rag"
-
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # =========================================================
@@ -155,7 +152,7 @@ class MultimodalRAG:
     def __init__(self, chroma_dir, chroma_collection_name):
         self.processor = MultimodalProcessor()
         # self.vectorstore = load_vectorstore(chroma_dir, chroma_collection_name)
-        # self.vectorstore = build_vectorstore(chroma_dir, chroma_collection_name)
+        self.vectorstore = build_vectorstore(chroma_dir, chroma_collection_name)
         self.retriever = self.vectorstore.as_retriever(
             search_kwargs={"k": 3}
         )
