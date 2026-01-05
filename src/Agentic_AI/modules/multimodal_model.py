@@ -23,45 +23,44 @@ from common_modules.initialize import setup_logger
 
 logger = setup_logger(__name__)
 
-# =========================================================
-# CONFIG
-# =========================================================
 
-EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-LOCAL_LLM_MODEL = "llama3"
-
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # =========================================================
 # MULTIMODAL PROCESSORS
 # =========================================================
 
 class MultimodalProcessor:
-    def __init__(self):
+    def __init__(
+            self,
+            image_captioning_model,
+            speech_model,
+            device,
+        ):
         # 🎧 ASR — Whisper via HF Transformers
         self.asr = pipeline(
             "automatic-speech-recognition",
-            model="openai/whisper-tiny",
-            device=0 if DEVICE == "cuda" else -1,
+            model=speech_model,
+            device=0 if device == "cuda" else -1,
         )
 
         # 🖼️ Image captioning (BLIP — safetensors)
         self.blip_processor = BlipProcessor.from_pretrained(
-            "Salesforce/blip-image-captioning-base",
+            image_captioning_model,
             use_fast=True
         )
 
         self.blip_model = BlipForConditionalGeneration.from_pretrained(
-            "Salesforce/blip-image-captioning-base",
+            image_captioning_model,
             torch_dtype=torch.float32,
             use_safetensors=True,
-        ).to(DEVICE)
+        ).to(device)
 
     # -------- INPUT --------
     def input_to_text(
         self,
         input_data: str,
-        modality: Literal["text", "image", "audio"]
+        modality: Literal["text", "image", "audio"],
+        device
     ) -> str:
 
         if modality == "text":
@@ -69,7 +68,7 @@ class MultimodalProcessor:
 
         if modality == "image":
             image = Image.open(input_data).convert("RGB")
-            inputs = self.blip_processor(image, return_tensors="pt").to(DEVICE)
+            inputs = self.blip_processor(image, return_tensors="pt").to(device)
             output_ids = self.blip_model.generate(**inputs)
             return self.blip_processor.decode(
                 output_ids[0],
@@ -93,13 +92,13 @@ class MultimodalProcessor:
 # LOAD PREBUILT CHROMA VECTOR STORE
 # =========================================================
 
-def load_vectorstore(chroma_dir, chroma_collection_name) -> Chroma:
+def load_vectorstore(chroma_dir, chroma_collection_name, embed_model) -> Chroma:
     if not os.path.exists(chroma_dir):
         raise FileNotFoundError(
             f"Chroma DB not found at: {chroma_dir}"
         )
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name=embed_model)
 
     logger.info("Loading existing Chroma vector store")
 
@@ -113,8 +112,8 @@ def load_vectorstore(chroma_dir, chroma_collection_name) -> Chroma:
 # BUILD VECTOR STORE (CHROMA)
 # =========================================================
 
-def build_vectorstore(chroma_dir, chroma_collection_name) -> Chroma:
-    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+def build_vectorstore(chroma_dir, chroma_collection_name, embed_model) -> Chroma:
+    embeddings = HuggingFaceEmbeddings(model_name=embed_model)
 
     # Same pattern as rag_chroma.py
     vectordb = Chroma(
@@ -149,18 +148,36 @@ def build_vectorstore(chroma_dir, chroma_collection_name) -> Chroma:
 # =========================================================
 
 class MultimodalRAG:
-    def __init__(self, chroma_dir, chroma_collection_name):
-        self.processor = MultimodalProcessor()
-        # self.vectorstore = load_vectorstore(chroma_dir, chroma_collection_name)
-        self.vectorstore = build_vectorstore(chroma_dir, chroma_collection_name)
+    def __init__(
+            self,
+            chroma_dir,
+            chroma_collection_name,
+            device=None,
+            embed_model="sentence-transformers/all-MiniLM-L6-v2",
+            k=3,
+            temperature=0.2,
+            local_llm_model="llama3",
+            image_captioning_model="Salesforce/blip-image-captioning-base",
+            speech_model="openai/whisper-tiny",
+    ):
+        if device is None:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.processor = MultimodalProcessor(
+            image_captioning_model,
+            speech_model,
+            self.device
+        )
+        # self.vectorstore = load_vectorstore(chroma_dir, chroma_collection_name, embed_model)
+        self.vectorstore = build_vectorstore(chroma_dir, chroma_collection_name, embed_model)
         self.retriever = self.vectorstore.as_retriever(
-            search_kwargs={"k": 3}
+            search_kwargs={"k": k}
         )
 
         # 🦙 LOCAL LLM (NO OPENAI)
         self.llm = Ollama(
-            model=LOCAL_LLM_MODEL,
-            temperature=0.2,
+            model=local_llm_model,
+            temperature=temperature,
         )
 
     def run(
@@ -172,7 +189,8 @@ class MultimodalRAG:
         # 1️⃣ Normalize input → text
         query_text = self.processor.input_to_text(
             input_data,
-            input_modality
+            input_modality,
+            self.device
         )
 
         # 2️⃣ Retrieve context (RAG)
