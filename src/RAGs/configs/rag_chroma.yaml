@@ -16,7 +16,7 @@ logging:
 
 
 chroma: # this code needs chroma ingest code running and saving the database in the following directory
-  persist_directory: /Users/omidmaghsoudi/github/LLM_RAGs/src/RAGs/outputs/chroma_ingest/chroma
+  persist_directory: ../../src/RAGs/outputs/chroma_ingest/chroma
 
 retriever:
   k: 5

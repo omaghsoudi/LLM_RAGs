@@ -13,7 +13,7 @@ logging:
   file: "run_hydra.log"
 
 data:
-  path: "/Users/omidmaghsoudi/github/LLM_RAGs/datasets/sample_pdfs_rag_database"
+  path: "../../datasets/sample_pdfs_rag_database"
 
 database:
   persist_path: "chroma"
