@@ -23,7 +23,7 @@ def main():
 
     logger.info("\n🚀 Initializing Multimodal RAG System...")
     rag = MultimodalRAG(
-        chroma_dir  = "./chroma_db",
+        chroma_dir  = f"{OUTPUT_DIR}/chroma_db",
         chroma_collection_name = "multimodal_rag",
         logger=logger
     )
@@ -36,6 +36,7 @@ def main():
         input_data="Are watermelon seeds dangerous?",
         input_modality="text",
         output_modality="text",
+        file_path=f"{OUTPUT_DIR}/text_to_text.txt",
     )
     logger.info(f"Result: {result}")
     assert isinstance(result, str) and len(result) > 10
@@ -49,6 +50,7 @@ def main():
         input_data=image_path,
         input_modality="image",
         output_modality="text",
+        file_path=f"{OUTPUT_DIR}/image_to_text.txt",
     )
     logger.info(f"Result: {result}")
     assert isinstance(result, str)
@@ -62,6 +64,7 @@ def main():
         input_data=audio_path,
         input_modality="audio",
         output_modality="text",
+        file_path=f"{OUTPUT_DIR}/audio_to_text.txt",
     )
     logger.info(f"Result: {result}")
     assert isinstance(result, str)
@@ -74,6 +77,7 @@ def main():
         input_data="Explain why watermelon seeds are safe to eat",
         input_modality="text",
         output_modality="image",
+        file_path=f"{OUTPUT_DIR}/text_to_image.png",
     )
     logger.info(f"Image saved at: {output_path}")
     assert os.path.exists(output_path)
@@ -86,6 +90,7 @@ def main():
         input_data="Are watermelon seeds harmful?",
         input_modality="text",
         output_modality="audio",
+        file_path=f"{OUTPUT_DIR}/text_to_audio.mp3",
     )
     logger.info(f"Audio saved at: {output_path}")
     assert os.path.exists(output_path)
@@ -98,6 +103,7 @@ def main():
         input_data=image_path,
         input_modality="image",
         output_modality="audio",
+        file_path=f"{OUTPUT_DIR}/image_to_audio.mp3",
     )
     logger.info(f"Audio saved at: {output_path}")
     assert os.path.exists(output_path)
@@ -110,6 +116,7 @@ def main():
         input_data=audio_path,
         input_modality="audio",
         output_modality="image",
+        file_path=f"{OUTPUT_DIR}/audio_to_image.png",
     )
     logger.info(f"Image saved at: {output_path}")
     assert os.path.exists(output_path)
