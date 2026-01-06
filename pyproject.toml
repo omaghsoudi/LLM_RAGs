@@ -5,7 +5,7 @@ description = "LLM + RAG experiments and evaluation framework"
 authors = ["Omid Maghsoudi <omidh.usa@gmail.com>"]
 readme = "README.md"
 packages = [
-    { include = "common_modules", from = "src" },
+    { include = "Common_modules", from = "src" },
     { include = "RAGs", from = "src" },
     { include = "Eval_models", from = "src" },
     { include = "LLMs_training", from = "src" }

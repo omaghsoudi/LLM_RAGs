@@ -13,7 +13,7 @@ import torch
 import nltk
 from nltk.corpus import stopwords
 
-from common_modules.initialize import setup_logger
+from Common_modules.initialize import setup_logger
 
 from Eval_models.modules.few_shots import generate_few_shots
 from Eval_models.modules.evaluation import (

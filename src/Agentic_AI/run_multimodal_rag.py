@@ -7,7 +7,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from Agentic_AI.modules.multimodal_model import MultimodalRAG
-from common_modules.initialize import setup_logger
+from Common_modules.initialize import setup_logger
 
 
 @hydra.main(

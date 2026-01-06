@@ -10,7 +10,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
 
-from common_modules.initialize import setup_logger
+from Common_modules.initialize import setup_logger
 
 from langchain_community.embeddings.ollama import OllamaEmbeddings
 

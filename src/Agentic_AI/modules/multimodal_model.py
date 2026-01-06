@@ -21,7 +21,7 @@ from transformers import (
     BlipForConditionalGeneration,
 )
 
-from common_modules.initialize import setup_logger
+from Common_modules.initialize import setup_logger
 
 
 

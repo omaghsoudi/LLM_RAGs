@@ -15,9 +15,9 @@ from LLMs_training.modules.datasets import create_dataloader
 from LLMs_training.modules.weights import load_weights_into_gpt
 from LLMs_training.modules.plots import plot_losses
 
-from common_modules.initialize import setup_logger
-from common_modules.losses import calc_loss_loader, calc_loss_batch
-from common_modules.tokens_helpers import token_ids_to_text, text_to_token_ids
+from Common_modules.initialize import setup_logger
+from Common_modules.losses import calc_loss_loader, calc_loss_batch
+from Common_modules.tokens_helpers import token_ids_to_text, text_to_token_ids
 
 
 
