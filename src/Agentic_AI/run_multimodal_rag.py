@@ -1,127 +1,83 @@
-# run_multimodal_rag_demo.py
+from __future__ import annotations
+
 import os
 from pathlib import Path
+
+import hydra
+from omegaconf import DictConfig, OmegaConf
+
 from Agentic_AI.modules.multimodal_model import MultimodalRAG
 from common_modules.initialize import setup_logger
 
 
-# --------------------------------------------------
-# Paths
-# --------------------------------------------------
-ASSETS_DIR = "/home/omid/github/LLM_RAGs/datasets/multimodal_rag"
-OUTPUT_DIR = "./outputs/multimodal_rag"
+@hydra.main(
+    version_base="1.3",
+    config_path="conf",
+    config_name="run_multimodal_rag",
+)
+def main(cfg: DictConfig):
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # --------------------------------------------------
+    # Setup
+    # --------------------------------------------------
+    Path(cfg.output_dir).mkdir(parents=True, exist_ok=True)
+    logger = setup_logger(cfg.logging.file)
 
-
-def main():
-    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-    logger = setup_logger(f"{OUTPUT_DIR}/multimodal_rag_demo.log")
-
-    # log working directory
+    logger.info("🚀 Starting Multimodal RAG Demo")
+    logger.info(f"Config:\n{OmegaConf.to_yaml(cfg)}")
     logger.info(f"Working directory: {os.getcwd()}")
 
-    logger.info("\n🚀 Initializing Multimodal RAG System...")
+    # --------------------------------------------------
+    # Initialize RAG
+    # --------------------------------------------------
     rag = MultimodalRAG(
-        chroma_dir  = f"{OUTPUT_DIR}/chroma_db",
-        chroma_collection_name = "multimodal_rag",
-        logger=logger
+        chroma_dir=cfg.chroma.chroma.chroma_dir,
+        chroma_collection_name=cfg.rag.chroma.collection_name,
+        k=cfg.rag.chroma.k,
+        load_vector=cfg.rag.chroma.load_vector,
+        local_llm_model=cfg.rag.llm.local_model,
+        temperature=cfg.rag.llm.temperature,
+        embed_model=cfg.rag.embeddings.model,
+        speech_model=cfg.rag.speech.model,
+        image_captioning_model=cfg.rag.vision.image_captioning_model,
+        model_id_text_to_image=cfg.rag.vision.text_to_image_model,
+        hf_token=cfg.rag.auth.hf_token,
+        logger=logger,
     )
 
     # --------------------------------------------------
-    # TEXT → TEXT
+    # Execute Runs
     # --------------------------------------------------
-    logger.info("\n🔹 TEXT → TEXT")
-    result = rag.run(
-        input_data="Are watermelon seeds dangerous?",
-        input_modality="text",
-        output_modality="text",
-        file_path=f"{OUTPUT_DIR}/text_to_text.txt",
-    )
-    logger.info(f"Result: {result}")
-    assert isinstance(result, str) and len(result) > 10
+    for run_cfg in cfg.runs:
+        logger.info(f"\n🔹 RUN: {run_cfg.name}")
+        logger.info(f"Comment: {run_cfg.comment}")
 
-    # --------------------------------------------------
-    # IMAGE → TEXT
-    # --------------------------------------------------
-    logger.info("\n🔹 IMAGE → TEXT")
-    image_path = os.path.join(ASSETS_DIR, "watermelon.jpg")
-    result = rag.run(
-        input_data=image_path,
-        input_modality="image",
-        output_modality="text",
-        file_path=f"{OUTPUT_DIR}/image_to_text.txt",
-    )
-    logger.info(f"Result: {result}")
-    assert isinstance(result, str)
+        # Input resolution
+        input_modality = run_cfg.input.modality
+        input_data = (
+            run_cfg.input.data
+            if "data" in run_cfg.input
+            else run_cfg.input.file
+        )
 
-    # --------------------------------------------------
-    # AUDIO → TEXT
-    # --------------------------------------------------
-    logger.info("\n🔹 AUDIO → TEXT")
-    audio_path = os.path.join(ASSETS_DIR, "question.wav")
-    result = rag.run(
-        input_data=audio_path,
-        input_modality="audio",
-        output_modality="text",
-        file_path=f"{OUTPUT_DIR}/audio_to_text.txt",
-    )
-    logger.info(f"Result: {result}")
-    assert isinstance(result, str)
+        # Output resolution
+        output_modality = run_cfg.output.modality
+        output_file = run_cfg.output.file
 
-    # --------------------------------------------------
-    # TEXT → IMAGE
-    # --------------------------------------------------
-    logger.info("\n🔹 TEXT → IMAGE")
-    output_path = rag.run(
-        input_data="Explain why watermelon seeds are safe to eat",
-        input_modality="text",
-        output_modality="image",
-        file_path=f"{OUTPUT_DIR}/text_to_image.png",
-    )
-    logger.info(f"Image saved at: {output_path}")
-    assert os.path.exists(output_path)
+        Path(os.path.dirname(output_file)).mkdir(parents=True, exist_ok=True)
 
-    # --------------------------------------------------
-    # TEXT → AUDIO
-    # --------------------------------------------------
-    logger.info("\n🔹 TEXT → AUDIO")
-    output_path = rag.run(
-        input_data="Are watermelon seeds harmful?",
-        input_modality="text",
-        output_modality="audio",
-        file_path=f"{OUTPUT_DIR}/text_to_audio.mp3",
-    )
-    logger.info(f"Audio saved at: {output_path}")
-    assert os.path.exists(output_path)
+        result = rag.run(
+            input_data=input_data,
+            input_modality=input_modality,
+            output_modality=output_modality,
+            file_path=output_file,
+        )
 
-    # --------------------------------------------------
-    # IMAGE → AUDIO
-    # --------------------------------------------------
-    logger.info("\n🔹 IMAGE → AUDIO")
-    output_path = rag.run(
-        input_data=image_path,
-        input_modality="image",
-        output_modality="audio",
-        file_path=f"{OUTPUT_DIR}/image_to_audio.mp3",
-    )
-    logger.info(f"Audio saved at: {output_path}")
-    assert os.path.exists(output_path)
+        logger.info(f"Output saved to: {output_file}")
+        logger.debug(f"Result preview: {str(result)[:200]}")
 
-    # --------------------------------------------------
-    # AUDIO → IMAGE
-    # --------------------------------------------------
-    logger.info("\n🔹 AUDIO → IMAGE")
-    output_path = rag.run(
-        input_data=audio_path,
-        input_modality="audio",
-        output_modality="image",
-        file_path=f"{OUTPUT_DIR}/audio_to_image.png",
-    )
-    logger.info(f"Image saved at: {output_path}")
-    assert os.path.exists(output_path)
+    logger.info("\n✅ All multimodal RAG runs completed successfully!")
 
-    logger.info("\n✅ All multimodal RAG demos completed successfully!")
 
 if __name__ == "__main__":
     main()
