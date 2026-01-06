@@ -12,7 +12,7 @@ from Common_modules.initialize import setup_logger
 
 @hydra.main(
     version_base="1.3",
-    config_path="conf",
+    config_path="configs",
     config_name="run_multimodal_rag",
 )
 def main(cfg: DictConfig):
