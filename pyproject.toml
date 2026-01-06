@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [
     { include = "common_modules", from = "src" },
     { include = "RAGs", from = "src" },
-    { include = "eval_models", from = "src" },
+    { include = "Eval_models", from = "src" },
     { include = "LLMs_training", from = "src" }
 ]
 
