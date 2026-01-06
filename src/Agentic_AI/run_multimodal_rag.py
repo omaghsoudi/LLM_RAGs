@@ -22,7 +22,11 @@ def main():
     logger.info(f"Working directory: {os.getcwd()}")
 
     logger.info("\n🚀 Initializing Multimodal RAG System...")
-    rag = MultimodalRAG(chroma_dir  = "./chroma_db", chroma_collection_name = "multimodal_rag", logger=logger)
+    rag = MultimodalRAG(
+        chroma_dir  = "./chroma_db",
+        chroma_collection_name = "multimodal_rag",
+        logger=logger
+    )
 
     # --------------------------------------------------
     # TEXT → TEXT

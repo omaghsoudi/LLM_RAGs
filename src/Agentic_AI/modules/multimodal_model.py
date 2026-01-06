@@ -38,10 +38,11 @@ class FluxTextToImage:
     def __init__(
         self,
         model_id: str = "black-forest-labs/FLUX.1-schnell",
+        api_url: str = "https://router.huggingface.co/hf-inference/models",
         hf_token: str | None = None,
     ):
         self.model_id = model_id
-        self.api_url = f"https://router.huggingface.co/hf-inference/models/{model_id}"
+        self.api_url = f"{api_url}/{model_id}"
         self.headers = {
             "Authorization": f"Bearer {hf_token or os.getenv('HF_TOKEN')}",
             "Content-Type": "application/json",
@@ -86,8 +87,6 @@ class FluxTextToImage:
         image = Image.open(BytesIO(response.content))
         image.save(out_path)
         return out_path
-
-
 
 
 # =========================================================
@@ -147,7 +146,7 @@ class MultimodalProcessor:
         raise ValueError(f"Unsupported modality: {modality}")
 
     # -------- OUTPUT --------
-    def text_to_voice(self, text: str, out_path: str = "output.mp3") -> str:
+    def text_to_voice(self, text: str, out_path) -> str:
         tts = gTTS(text)
         tts.save(out_path)
         return out_path
@@ -180,14 +179,12 @@ def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) ->
 def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
     embeddings = HuggingFaceEmbeddings(model_name=embed_model)
 
-    # Same pattern as rag_chroma.py
     vectordb = Chroma(
         collection_name=chroma_collection_name,
         embedding_function=embeddings,
         persist_directory=chroma_dir,
     )
 
-    # Only seed if empty (important for persistence)
     if vectordb._collection.count() == 0:
         logger.info("Seeding Chroma vector store")
 
@@ -214,22 +211,23 @@ def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -
 
 class MultimodalRAG:
     def __init__(
-            self,
-            chroma_dir,
-            chroma_collection_name,
-            logger=None,
-            device=None,
-            embed_model="sentence-transformers/all-MiniLM-L6-v2",
-            k=3,
-            temperature=0.2,
-            local_llm_model="llama3",
-            image_captioning_model="Salesforce/blip-image-captioning-base",
-            speech_model="openai/whisper-tiny",
-            model_id_text_to_image = "black-forest-labs/FLUX.1-schnell",
-            hf_token = None,
+        self,
+        chroma_dir,
+        chroma_collection_name,
+        k=3,
+        logger=None,
+        device=None,
+        hf_token = None,
+        temperature=0.2,
+        load_vector=False,
+        local_llm_model="llama3",
+        speech_model="openai/whisper-tiny",
+        embed_model="sentence-transformers/all-MiniLM-L6-v2",
+        model_id_text_to_image = "black-forest-labs/FLUX.1-schnell",
+        image_captioning_model="Salesforce/blip-image-captioning-base",
     ):
-        self.model_id_text_to_image = model_id_text_to_image
         self.hf_token = hf_token
+        self.model_id_text_to_image = model_id_text_to_image
         if device is None:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -241,13 +239,17 @@ class MultimodalRAG:
             speech_model,
             self.device
         )
-        # self.vectorstore = load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger)
-        self.vectorstore = build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger)
+
+        if load_vector:
+            self.vectorstore = load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger)
+        else:
+            self.vectorstore = build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger)
+
         self.retriever = self.vectorstore.as_retriever(
             search_kwargs={"k": k}
         )
 
-        # 🦙 LOCAL LLM (NO OPENAI)
+        # 🦙 LOCAL LLM
         self.llm = Ollama(
             model=local_llm_model,
             temperature=temperature,
@@ -258,6 +260,7 @@ class MultimodalRAG:
         input_data: str,
         input_modality: Literal["text", "image", "audio"],
         output_modality: Literal["text", "image", "audio"],
+        file_path = None,
     ):
         # 1️⃣ Normalize input → text
         query_text = self.processor.input_to_text(
@@ -281,27 +284,31 @@ class MultimodalRAG:
                     Question:
                     {query_text}
                 """
-
         answer = self.llm.invoke(prompt)
 
         # 4️⃣ Output modality
         if output_modality == "text":
+            if file_path is not None:
+                with open(file_path, "w") as f:
+                    f.write(answer)
             return answer
         
         if output_modality == "image":
-            # place holde r for text-to-image generation
+            if file_path is None:
+                file_path = "./generated_image.png"
             flux = FluxTextToImage(
                 model_id = self.model_id_text_to_image,
                 hf_token = self.hf_token,
             )
-            out_path = "output.png"
             flux.generate(
                 prompt=answer,
-                out_path=out_path,
+                out_path=file_path,
             )
-            return out_path
+            return file_path
             
         if output_modality == "audio":
-            return self.processor.text_to_voice(answer)
+            if file_path is None:
+                file_path = "./generated_voice.mp3"
+            return self.processor.text_to_voice(answer, out_path=file_path)
 
         raise ValueError(f"Unsupported output modality: {output_modality}")
