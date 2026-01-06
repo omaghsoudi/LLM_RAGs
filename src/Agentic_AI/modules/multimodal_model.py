@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import requests
+from io import BytesIO
 from typing import Literal
 
 import torch
@@ -21,7 +23,70 @@ from transformers import (
 
 from common_modules.initialize import setup_logger
 
-logger = setup_logger(__name__)
+
+
+
+# =========================================================
+# FLUX.1 TEXT → IMAGE (HF INFERENCE API)
+# =========================================================
+
+class FluxTextToImage:
+    """
+    FLUX.1 via Hugging Face Router API (text-to-image)
+    """
+
+    def __init__(
+        self,
+        model_id: str = "black-forest-labs/FLUX.1-schnell",
+        hf_token: str | None = None,
+    ):
+        self.model_id = model_id
+        self.api_url = f"https://router.huggingface.co/hf-inference/models/{model_id}"
+        self.headers = {
+            "Authorization": f"Bearer {hf_token or os.getenv('HF_TOKEN')}",
+            "Content-Type": "application/json",
+        }
+
+        if not self.headers["Authorization"] or self.headers["Authorization"] == "Bearer None":
+            raise ValueError("HF_TOKEN must be set for FLUX image generation")
+
+    def generate(
+        self,
+        prompt: str,
+        out_path: str = "output.png",
+        width: int = 1024,
+        height: int = 1024,
+        steps: int = 4,
+    ) -> str:
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "width": width,
+                "height": height,
+                "num_inference_steps": steps,
+            },
+            "options": {
+                "wait_for_model": True
+            }
+        }
+
+        response = requests.post(
+            self.api_url,
+            headers=self.headers,
+            json=payload,
+            timeout=300,
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"FLUX image generation failed "
+                f"({response.status_code}): {response.text}"
+            )
+
+        image = Image.open(BytesIO(response.content))
+        image.save(out_path)
+        return out_path
+
 
 
 
@@ -92,7 +157,7 @@ class MultimodalProcessor:
 # LOAD PREBUILT CHROMA VECTOR STORE
 # =========================================================
 
-def load_vectorstore(chroma_dir, chroma_collection_name, embed_model) -> Chroma:
+def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
     if not os.path.exists(chroma_dir):
         raise FileNotFoundError(
             f"Chroma DB not found at: {chroma_dir}"
@@ -112,7 +177,7 @@ def load_vectorstore(chroma_dir, chroma_collection_name, embed_model) -> Chroma:
 # BUILD VECTOR STORE (CHROMA)
 # =========================================================
 
-def build_vectorstore(chroma_dir, chroma_collection_name, embed_model) -> Chroma:
+def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
     embeddings = HuggingFaceEmbeddings(model_name=embed_model)
 
     # Same pattern as rag_chroma.py
@@ -152,6 +217,7 @@ class MultimodalRAG:
             self,
             chroma_dir,
             chroma_collection_name,
+            logger=None,
             device=None,
             embed_model="sentence-transformers/all-MiniLM-L6-v2",
             k=3,
@@ -159,17 +225,24 @@ class MultimodalRAG:
             local_llm_model="llama3",
             image_captioning_model="Salesforce/blip-image-captioning-base",
             speech_model="openai/whisper-tiny",
+            model_id_text_to_image = "black-forest-labs/FLUX.1-schnell",
+            hf_token = None,
     ):
+        self.model_id_text_to_image = model_id_text_to_image
+        self.hf_token = hf_token
         if device is None:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        if logger is None:
+            logger = setup_logger(__name__)
 
         self.processor = MultimodalProcessor(
             image_captioning_model,
             speech_model,
             self.device
         )
-        # self.vectorstore = load_vectorstore(chroma_dir, chroma_collection_name, embed_model)
-        self.vectorstore = build_vectorstore(chroma_dir, chroma_collection_name, embed_model)
+        # self.vectorstore = load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger)
+        self.vectorstore = build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger)
         self.retriever = self.vectorstore.as_retriever(
             search_kwargs={"k": k}
         )
@@ -214,7 +287,20 @@ class MultimodalRAG:
         # 4️⃣ Output modality
         if output_modality == "text":
             return answer
-
+        
+        if output_modality == "image":
+            # place holde r for text-to-image generation
+            flux = FluxTextToImage(
+                model_id = self.model_id_text_to_image,
+                hf_token = self.hf_token,
+            )
+            out_path = "output.png"
+            flux.generate(
+                prompt=answer,
+                out_path=out_path,
+            )
+            return out_path
+            
         if output_modality == "audio":
             return self.processor.text_to_voice(answer)
 
