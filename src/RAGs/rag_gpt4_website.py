@@ -6,7 +6,7 @@ import os
 import pprint
 from dotenv import load_dotenv
 
-from common_modules.initialize import setup_logger
+from Common_modules.initialize import setup_logger
 
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter

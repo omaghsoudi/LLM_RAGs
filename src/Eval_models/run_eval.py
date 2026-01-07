@@ -13,19 +13,19 @@ import torch
 import nltk
 from nltk.corpus import stopwords
 
-from common_modules.initialize import setup_logger
+from Common_modules.initialize import setup_logger
 
-from eval_models.modules.few_shots import generate_few_shots
-from eval_models.modules.evaluation import (
+from Eval_models.modules.few_shots import generate_few_shots
+from Eval_models.modules.evaluation import (
     aggregate_metrics,
     compute_metrics,
     agreement_score,
     plot_metrics_per_sample,
     plot_aggregated
 )
-from eval_models.modules.model_related import generate, load_model
-from eval_models.modules.llm_judge import judge_correctness
-from eval_models.modules.claim_verification import claim_support_metrics
+from Eval_models.modules.model_related import generate, load_model
+from Eval_models.modules.llm_judge import judge_correctness
+from Eval_models.modules.claim_verification import claim_support_metrics
 
 
 

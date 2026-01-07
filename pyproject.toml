@@ -5,9 +5,9 @@ description = "LLM + RAG experiments and evaluation framework"
 authors = ["Omid Maghsoudi <omidh.usa@gmail.com>"]
 readme = "README.md"
 packages = [
-    { include = "common_modules", from = "src" },
+    { include = "Common_modules", from = "src" },
     { include = "RAGs", from = "src" },
-    { include = "eval_models", from = "src" },
+    { include = "Eval_models", from = "src" },
     { include = "LLMs_training", from = "src" }
 ]
 
@@ -16,8 +16,8 @@ python = ">=3.11,<3.12"
 
 # Core ML / Data
 numpy = "<2"
-torch = ">=2.0.0,<2.3.0"
-torchvision = ">=0.17.2,<0.18.0"
+torch = ">=2.3.0,<2.4.0"
+torchvision = ">=0.17.2"
 pandas = ">=2.2.1,<3.0.0"
 
 # NLP / Evaluation

@@ -3,7 +3,7 @@
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
-from common_modules.initialize import setup_logger
+from Common_modules.initialize import setup_logger
 
 from langchain_community.document_loaders import UnstructuredFileLoader
 from langchain_community.llms import Ollama

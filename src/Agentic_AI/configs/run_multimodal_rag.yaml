@@ -1,0 +1,112 @@
+experiment_name: "run_multimodal_rag"
+output_dir: ./outputs/${experiment_name}
+
+hydra:
+  run:
+    dir: ${output_dir}
+
+version: 1.1.0
+
+defaults:
+  - _self_
+
+logging:
+  file: ${output_dir}/run_hydra.log
+
+device:
+  use_cuda: auto
+  seed: 123
+
+dataset_dir: ./datasets/multimodal_rag
+
+rag:
+  chroma:
+    collection_name: "multimodal_rag"
+    load_vector: false
+    chroma_dir: ${output_dir}/chroma_db
+    k: 3
+
+  llm:
+    local_model: "llama3"
+    temperature: 0.2
+
+  embeddings:
+    model: "sentence-transformers/all-MiniLM-L6-v2"
+
+  speech:
+    model: "openai/whisper-tiny"
+
+  vision:
+    image_captioning_model: "Salesforce/blip-image-captioning-base"
+    text_to_image_model: "black-forest-labs/FLUX.1-schnell"
+
+  auth:
+    hf_token: null
+
+# --------------------------------------------------
+# DEMO RUNS (ALL IO DECLARED HERE)
+# --------------------------------------------------
+runs:
+
+  - name: text_to_text
+    comment: "Basic factual question"
+    input:
+      modality: text
+      data: "Are watermelon seeds dangerous?"
+    output:
+      modality: text
+      file: ${output_dir}/text_to_text.txt
+
+  - name: image_to_text
+    comment: "Image caption + RAG"
+    input:
+      modality: image
+      file: ${dataset_dir}/watermelon.jpg
+    output:
+      modality: text
+      file: ${output_dir}/image_to_text.txt
+
+  - name: audio_to_text
+    comment: "ASR + RAG"
+    input:
+      modality: audio
+      file: ${dataset_dir}/question.wav
+    output:
+      modality: text
+      file: ${output_dir}/audio_to_text.txt
+
+  - name: text_to_image
+    comment: "Text reasoning → image generation"
+    input:
+      modality: text
+      data: "Explain why watermelon seeds are safe to eat"
+    output:
+      modality: image
+      file: ${output_dir}/text_to_image.png
+
+  - name: text_to_audio
+    comment: "Text reasoning → TTS"
+    input:
+      modality: text
+      data: "Are watermelon seeds harmful?"
+    output:
+      modality: audio
+      file: ${output_dir}/text_to_audio.mp3
+
+  - name: image_to_audio
+    comment: "Image → reasoning → TTS"
+    input:
+      modality: image
+      file: ${dataset_dir}/watermelon.jpg
+    output:
+      modality: audio
+      file: ${output_dir}/image_to_audio.mp3
+
+  - name: audio_to_image
+    comment: "ASR → reasoning → image"
+    input:
+      modality: audio
+      file: ${dataset_dir}/question.wav
+    output:
+      modality: image
+      file: ${output_dir}/audio_to_image.png

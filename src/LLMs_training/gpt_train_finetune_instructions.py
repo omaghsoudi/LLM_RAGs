@@ -19,11 +19,11 @@ from LLMs_training.modules.weights import load_weights_into_gpt
 from LLMs_training.modules.plots import plot_losses_train_val
 from LLMs_training.modules.collate_functions import custom_collate_fn
 
-from common_modules.initialize import setup_logger
-from common_modules.losses import calc_loss_loader, calc_loss_batch, calc_loss_loader_v2
-from common_modules.tokens_helpers import token_ids_to_text, text_to_token_ids
-from common_modules.prompts import InstructionDataset, format_input
-from common_modules.utils import download_and_load_file
+from Common_modules.initialize import setup_logger
+from Common_modules.losses import calc_loss_loader, calc_loss_batch, calc_loss_loader_v2
+from Common_modules.tokens_helpers import token_ids_to_text, text_to_token_ids
+from Common_modules.prompts import InstructionDataset, format_input
+from Common_modules.utils import download_and_load_file
 
 
 def evaluate_model(model, train_loader, val_loader, device, eval_iter):

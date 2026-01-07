@@ -19,7 +19,7 @@ def _creat_namespace_from_dict(input_dict):
 
 
 def update_config(path_to_config: str, args: dict):
-	""" This function updates the config; you can modify this to pass common_modules as a dict.
+	""" This function updates the config; you can modify this to pass Common_modules as a dict.
 
 	Args:
 		path_to_config: Path o config file.
