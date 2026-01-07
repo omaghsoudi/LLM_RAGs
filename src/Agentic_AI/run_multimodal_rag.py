@@ -6,7 +6,9 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
+# from Agentic_AI.modules.multimodal_model_langgraph import MultimodalRAG
 from Agentic_AI.modules.multimodal_model import MultimodalRAG
+
 from Common_modules.initialize import setup_logger
 
 
@@ -48,6 +50,7 @@ def main(cfg: DictConfig):
     # --------------------------------------------------
     # Execute Runs
     # --------------------------------------------------
+    logger.info("*"*100)
     for run_cfg in cfg.runs:
         logger.info(f"\n🔹 RUN: {run_cfg.name}")
         logger.info(f"Comment: {run_cfg.comment}")
@@ -74,7 +77,21 @@ def main(cfg: DictConfig):
         )
 
         logger.info(f"Output saved to: {output_file}")
-        logger.debug(f"Result preview: {str(result)[:200]}")
+        try:
+            # This is for LongGraphResult object
+            logger.info(f"Input answer: {result['parsed_input']}")
+            logger.info(f"Result answer: {result['answer']}")
+            logger.info(f"Detailed Processes: {result['plan']}, {result['retrieved_docs']}")
+            logger.info(f"Result preview: confidence score={result['confidence']}; haulucination={result['hallucination_detected']}; retry count={result['retry_count']}")
+            logger.info(f"Result preview: used fallback={result['used_fallback']}")
+        except Exception:
+            # This is for older versions
+            result = result.__dict__
+            logger.info(f"Input answer: {result['parsed_input']}")
+            logger.info(f"Result answer: {result['answer']}")
+            logger.info(f"Detailed Processes: {result['plan']}, {result['retrieved_docs']}")
+            logger.info(f"Result preview: confidence score={result['confidence']}; haulucination={result['hallucination_detected']}; retry count={result['retry_count']}")
+        logger.info("-"*100)
 
     logger.info("\n✅ All multimodal RAG runs completed successfully!")
 

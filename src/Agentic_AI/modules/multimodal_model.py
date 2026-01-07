@@ -23,97 +23,84 @@ from transformers import (
 
 from Common_modules.initialize import setup_logger
 
-
+from dataclasses import dataclass, field
+from typing import List, Optional
+import json
+import time
 
 
 # =========================================================
-# FLUX.1 TEXT → IMAGE (HF INFERENCE API)
+# AGENT STATE (ADDITIVE ONLY)
+# =========================================================
+
+@dataclass
+class AgentState:
+    raw_input: str
+    parsed_input: str
+    input_modality: str
+    output_modality: str
+
+    plan: List[str] = field(default_factory=list)
+    retrieved_docs: List[str] = field(default_factory=list)
+    answer: Optional[str] = None
+    confidence: Optional[float] = None
+
+    hallucination_detected: bool = False
+    used_fallback: bool = False
+    retry_count: int = 0
+
+
+# =========================================================
+# FLUX.1 TEXT → IMAGE
 # =========================================================
 
 class FluxTextToImage:
-    """
-    FLUX.1 via Hugging Face Router API (text-to-image)
-    """
-
     def __init__(
         self,
-        model_id: str = "black-forest-labs/FLUX.1-schnell",
-        api_url: str = "https://router.huggingface.co/hf-inference/models",
-        hf_token: str | None = None,
+        model_id="black-forest-labs/FLUX.1-schnell",
+        api_url="https://router.huggingface.co/hf-inference/models",
+        hf_token=None,
     ):
-        if hf_token is None:
-            hf_token = os.getenv("HF_TOKEN")
-        
-        self.model_id = model_id
+        hf_token = hf_token or os.getenv("HF_TOKEN")
         self.api_url = f"{api_url}/{model_id}"
         self.headers = {
             "Authorization": f"Bearer {hf_token}",
             "Content-Type": "application/json",
         }
 
-        if not self.headers["Authorization"] or self.headers["Authorization"] == "Bearer None":
-            raise ValueError("HF_TOKEN must be set for FLUX image generation")
+        if not hf_token:
+            raise ValueError("HF_TOKEN must be set")
 
-    def generate(
-        self,
-        prompt: str,
-        out_path: str = "output.png",
-        width: int = 1024,
-        height: int = 1024,
-        steps: int = 4,
-    ) -> str:
+    def generate(self, prompt, out_path="output.png", width=1024, height=1024, steps=4):
         payload = {
             "inputs": prompt,
-            "parameters": {
-                "width": width,
-                "height": height,
-                "num_inference_steps": steps,
-            },
-            "options": {
-                "wait_for_model": True
-            }
+            "parameters": {"width": width, "height": height, "num_inference_steps": steps},
+            "options": {"wait_for_model": True},
         }
 
-        response = requests.post(
-            self.api_url,
-            headers=self.headers,
-            json=payload,
-            timeout=300,
-        )
+        r = requests.post(self.api_url, headers=self.headers, json=payload, timeout=300)
+        if r.status_code != 200:
+            raise RuntimeError(r.text)
 
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"FLUX image generation failed "
-                f"({response.status_code}): {response.text}"
-            )
-
-        image = Image.open(BytesIO(response.content))
+        image = Image.open(BytesIO(r.content))
         image.save(out_path)
-        return out_path
+        return image
 
 
 # =========================================================
-# MULTIMODAL PROCESSORS
+# MULTIMODAL PROCESSOR
 # =========================================================
 
 class MultimodalProcessor:
-    def __init__(
-            self,
-            image_captioning_model,
-            speech_model,
-            device,
-        ):
-        # 🎧 ASR — Whisper via HF Transformers
+    def __init__(self, image_captioning_model, speech_model, device):
         self.asr = pipeline(
             "automatic-speech-recognition",
             model=speech_model,
             device=0 if device == "cuda" else -1,
         )
 
-        # 🖼️ Image captioning (BLIP — safetensors)
         self.blip_processor = BlipProcessor.from_pretrained(
-            image_captioning_model,
-            use_fast=True
+            image_captioning_model, use_fast=True
         )
 
         self.blip_model = BlipForConditionalGeneration.from_pretrained(
@@ -122,14 +109,7 @@ class MultimodalProcessor:
             use_safetensors=True,
         ).to(device)
 
-    # -------- INPUT --------
-    def input_to_text(
-        self,
-        input_data: str,
-        modality: Literal["text", "image", "audio"],
-        device
-    ) -> str:
-
+    def input_to_text(self, input_data, modality, device):
         if modality == "text":
             return input_data
 
@@ -137,36 +117,27 @@ class MultimodalProcessor:
             image = Image.open(input_data).convert("RGB")
             inputs = self.blip_processor(image, return_tensors="pt").to(device)
             output_ids = self.blip_model.generate(**inputs)
-            return self.blip_processor.decode(
-                output_ids[0],
-                skip_special_tokens=True
-            )
+            return self.blip_processor.decode(output_ids[0], skip_special_tokens=True)
 
         if modality == "audio":
-            result = self.asr(input_data)
-            return result["text"]
+            return self.asr(input_data)["text"]
 
-        raise ValueError(f"Unsupported modality: {modality}")
+        raise ValueError("Unsupported modality")
 
-    # -------- OUTPUT --------
-    def text_to_voice(self, text: str, out_path) -> str:
-        tts = gTTS(text)
-        tts.save(out_path)
+    def text_to_voice(self, text, out_path):
+        gTTS(text).save(out_path)
         return out_path
 
 
 # =========================================================
-# LOAD PREBUILT CHROMA VECTOR STORE
+# VECTOR STORE (RESTORED)
 # =========================================================
 
 def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
     if not os.path.exists(chroma_dir):
-        raise FileNotFoundError(
-            f"Chroma DB not found at: {chroma_dir}"
-        )
+        raise FileNotFoundError(f"Chroma DB not found at: {chroma_dir}")
 
     embeddings = HuggingFaceEmbeddings(model_name=embed_model)
-
     logger.info("Loading existing Chroma vector store")
 
     return Chroma(
@@ -175,9 +146,6 @@ def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) ->
         persist_directory=chroma_dir,
     )
 
-# =========================================================
-# BUILD VECTOR STORE (CHROMA)
-# =========================================================
 
 def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
     embeddings = HuggingFaceEmbeddings(model_name=embed_model)
@@ -209,7 +177,7 @@ def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -
 
 
 # =========================================================
-# MULTIMODAL RAG PIPELINE
+# MULTIMODAL RAG (FILE SAVING RESTORED)
 # =========================================================
 
 class MultimodalRAG:
@@ -220,98 +188,171 @@ class MultimodalRAG:
         k=3,
         logger=None,
         device=None,
-        hf_token = None,
+        hf_token=None,
         temperature=0.2,
         load_vector=False,
         local_llm_model="llama3",
         speech_model="openai/whisper-tiny",
         embed_model="sentence-transformers/all-MiniLM-L6-v2",
-        model_id_text_to_image = "black-forest-labs/FLUX.1-schnell",
+        model_id_text_to_image="black-forest-labs/FLUX.1-schnell",
         image_captioning_model="Salesforce/blip-image-captioning-base",
     ):
-        self.hf_token = hf_token
-        self.model_id_text_to_image = model_id_text_to_image
-        if device is None:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-        if logger is None:
-            logger = setup_logger(__name__)
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.logger = logger or setup_logger(__name__)
 
         self.processor = MultimodalProcessor(
-            image_captioning_model,
-            speech_model,
-            self.device
+            image_captioning_model, speech_model, self.device
         )
 
+        # 🔒 EXACT ORIGINAL LOGIC
         if load_vector:
-            self.vectorstore = load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger)
+            self.vectorstore = load_vectorstore(
+                chroma_dir, chroma_collection_name, embed_model, self.logger
+            )
         else:
-            self.vectorstore = build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger)
+            self.vectorstore = build_vectorstore(
+                chroma_dir, chroma_collection_name, embed_model, self.logger
+            )
 
-        self.retriever = self.vectorstore.as_retriever(
-            search_kwargs={"k": k}
+        self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": k})
+
+        self.llm = Ollama(model=local_llm_model, temperature=temperature)
+
+        self.text_to_image = FluxTextToImage(
+            model_id=model_id_text_to_image, hf_token=hf_token
         )
 
-        # 🦙 LOCAL LLM
-        self.llm = Ollama(
-            model=local_llm_model,
-            temperature=temperature,
+    # =====================================================
+    # RUN (FILES SAVED)
+    # =====================================================
+
+    def run(self, input_data, input_modality, output_modality, file_path=None):
+        query = self.processor.input_to_text(input_data, input_modality, self.device)
+
+        state = AgentState(
+            raw_input=input_data,
+            parsed_input=query,
+            input_modality=input_modality,
+            output_modality=output_modality,
         )
 
-    def run(
-        self,
-        input_data: str,
-        input_modality: Literal["text", "image", "audio"],
-        output_modality: Literal["text", "image", "audio"],
-        file_path = None,
-    ):
-        # 1️⃣ Normalize input → text
-        query_text = self.processor.input_to_text(
-            input_data,
-            input_modality,
-            self.device
+        state.plan = self._plan_steps(query)
+
+        docs, _ = self._retrieve_with_confidence(query)
+        state.retrieved_docs = [d.page_content for d in docs]
+        context = "\n".join(state.retrieved_docs)
+
+        answer = self._retry_with_backoff(
+            lambda: self.llm.invoke(self._build_prompt(context, query)),
+            state,
         )
 
-        # 2️⃣ Retrieve context (RAG)
-        docs = self.retriever.invoke(query_text)
-        context = "\n".join(d.page_content for d in docs)
+        answer, confidence = self._self_critique(answer, context)
 
-        # 3️⃣ LLM reasoning (LOCAL)
-        prompt = f"""
-                    You are a helpful assistant.
-                    Answer the question using ONLY the context.
-                    
+        if self._detect_hallucination(answer, context):
+            state.hallucination_detected = True
+            answer = self._retry_with_backoff(
+                lambda: self.llm.invoke(self._build_prompt(context, query)),
+                state,
+            )
+
+        state.answer = answer
+        state.confidence = confidence
+
+        # =================================================
+        # ✅ OUTPUT + FILE SAVING (RESTORED)
+        # =================================================
+
+        if output_modality == "text":
+            if file_path:
+                with open(file_path, "w") as f:
+                    f.write(state.answer)
+            return state
+
+        if output_modality == "image":
+            file_path = file_path or "generated_image.png"
+            self.text_to_image.generate(state.answer, out_path=file_path)
+            return state
+
+        if output_modality == "audio":
+            file_path = file_path or "generated_audio.mp3"
+            self.processor.text_to_voice(state.answer, file_path)
+            return state
+
+        raise ValueError("Unsupported output modality")
+
+    # =====================================================
+    # HELPERS
+    # =====================================================
+
+    def _retry_with_backoff(self, fn, state, max_retries=3):
+        for i in range(max_retries):
+            try:
+                return fn()
+            except Exception as e:
+                state.retry_count += 1
+                time.sleep(2 ** i)
+                self.logger.warning(f"Retry {i+1}: {e}")
+        raise RuntimeError("Failed after retries")
+
+
+    def _build_prompt(self, context, query):
+        return f"""
+        Use ONLY the context below.
+
+        Context:
+        {context}
+
+        Question:
+        {query}
+        """
+
+
+    def _plan_steps(self, query):
+        try:
+            return json.loads(
+                self.llm.invoke(f"Return reasoning steps as JSON list:\n{query}")
+            )
+        except Exception:
+            return ["retrieve context", "answer question"]
+
+
+    def _retrieve_with_confidence(self, query):
+        docs = self.retriever.invoke(query)
+        return docs, min(1.0, len(docs) / 2)
+
+
+    def _self_critique(self, answer, context):
+        try:
+            result = json.loads(
+                self.llm.invoke(
+                    f"""
                     Context:
                     {context}
-                    
-                    Question:
-                    {query_text}
-                """
-        answer = self.llm.invoke(prompt)
-
-        # 4️⃣ Output modality
-        if output_modality == "text":
-            if file_path is not None:
-                with open(file_path, "w") as f:
-                    f.write(answer)
-            return answer
-        
-        if output_modality == "image":
-            if file_path is None:
-                file_path = "./generated_image.png"
-            flux = FluxTextToImage(
-                model_id = self.model_id_text_to_image,
-                hf_token = self.hf_token,
+                    Answer:
+                    {answer}
+                    Return JSON {{ "improved_answer": "...", "confidence": 0-1 }}
+                    """
+                )
             )
-            flux.generate(
-                prompt=answer,
-                out_path=file_path,
-            )
-            return file_path
-            
-        if output_modality == "audio":
-            if file_path is None:
-                file_path = "./generated_voice.mp3"
-            return self.processor.text_to_voice(answer, out_path=file_path)
+            return result["improved_answer"], float(result["confidence"])
+        except Exception:
+            return answer, 0.6
 
-        raise ValueError(f"Unsupported output modality: {output_modality}")
+
+    def _detect_hallucination(self, answer, context):
+        try:
+            result = json.loads(
+                self.llm.invoke(
+                    f"""
+                    Context:
+                    {context}
+                    Answer:
+                    {answer}
+                    Return JSON {{ "hallucination": true/false }}
+                    """
+                )
+            )
+            return result.get("hallucination", False)
+        except Exception:
+            return False
