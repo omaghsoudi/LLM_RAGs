@@ -74,7 +74,7 @@ def main(cfg: DictConfig):
         )
 
         logger.info(f"Output saved to: {output_file}")
-        logger.debug(f"Result preview: {str(result)[:200]}")
+        logger.info(f"Result preview: {str(result)[:200]}")
 
     logger.info("\n✅ All multimodal RAG runs completed successfully!")
 

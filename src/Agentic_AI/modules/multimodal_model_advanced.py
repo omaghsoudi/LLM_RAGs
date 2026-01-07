@@ -267,16 +267,17 @@ class MultimodalRAG:
             if file_path:
                 with open(file_path, "w") as f:
                     f.write(state.answer)
-            return state.answer
+            return state
 
         if output_modality == "image":
             file_path = file_path or "generated_image.png"
-            image = self.text_to_image.generate(state.answer, out_path=file_path)
-            return image
+            self.text_to_image.generate(state.answer, out_path=file_path)
+            return state
 
         if output_modality == "audio":
             file_path = file_path or "generated_audio.mp3"
-            return self.processor.text_to_voice(state.answer, file_path)
+            self.processor.text_to_voice(state.answer, file_path)
+            return state
 
         raise ValueError("Unsupported output modality")
 
@@ -294,6 +295,7 @@ class MultimodalRAG:
                 self.logger.warning(f"Retry {i+1}: {e}")
         raise RuntimeError("Failed after retries")
 
+
     def _build_prompt(self, context, query):
         return f"""
         Use ONLY the context below.
@@ -305,6 +307,7 @@ class MultimodalRAG:
         {query}
         """
 
+
     def _plan_steps(self, query):
         try:
             return json.loads(
@@ -313,9 +316,11 @@ class MultimodalRAG:
         except Exception:
             return ["retrieve context", "answer question"]
 
+
     def _retrieve_with_confidence(self, query):
         docs = self.retriever.invoke(query)
         return docs, min(1.0, len(docs) / 2)
+
 
     def _self_critique(self, answer, context):
         try:
@@ -333,6 +338,7 @@ class MultimodalRAG:
             return result["improved_answer"], float(result["confidence"])
         except Exception:
             return answer, 0.6
+
 
     def _detect_hallucination(self, answer, context):
         try:

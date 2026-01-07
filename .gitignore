@@ -35,7 +35,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Keep poetry.lock committed
-poetry.lock
+# poetry.lock
 
 # ===============================
 # Jupyter / notebooks
