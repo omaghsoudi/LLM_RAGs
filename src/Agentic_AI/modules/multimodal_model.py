@@ -41,10 +41,13 @@ class FluxTextToImage:
         api_url: str = "https://router.huggingface.co/hf-inference/models",
         hf_token: str | None = None,
     ):
+        if hf_token is None:
+            hf_token = os.getenv("HF_TOKEN")
+        
         self.model_id = model_id
         self.api_url = f"{api_url}/{model_id}"
         self.headers = {
-            "Authorization": f"Bearer {hf_token or os.getenv('HF_TOKEN')}",
+            "Authorization": f"Bearer {hf_token}",
             "Content-Type": "application/json",
         }
 

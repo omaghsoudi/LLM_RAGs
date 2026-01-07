@@ -17,7 +17,7 @@ device:
   use_cuda: auto
   seed: 123
 
-dataset_dir: ../../datasets/multimodal_rag
+dataset_dir: ./datasets/multimodal_rag
 
 rag:
   chroma:

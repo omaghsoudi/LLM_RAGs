@@ -31,7 +31,7 @@ def main(cfg: DictConfig):
     # Initialize RAG
     # --------------------------------------------------
     rag = MultimodalRAG(
-        chroma_dir=cfg.chroma.chroma.chroma_dir,
+        chroma_dir=cfg.rag.chroma.chroma_dir,
         chroma_collection_name=cfg.rag.chroma.collection_name,
         k=cfg.rag.chroma.k,
         load_vector=cfg.rag.chroma.load_vector,
