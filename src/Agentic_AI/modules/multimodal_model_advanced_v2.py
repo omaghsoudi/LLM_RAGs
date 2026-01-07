@@ -3,35 +3,44 @@ from __future__ import annotations
 import os
 import requests
 from io import BytesIO
-from typing import Literal
+from typing import List, Optional
+from dataclasses import dataclass, field
+import json
+import time
 
 import torch
 from PIL import Image
 from gtts import gTTS
-
 from transformers import pipeline
+from transformers import BlipProcessor, BlipForConditionalGeneration
 
 from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.llms import Ollama
 
-from transformers import (
-    BlipProcessor,
-    BlipForConditionalGeneration,
-)
+from langgraph.graph import StateGraph, END
 
 from Common_modules.initialize import setup_logger
 
-from dataclasses import dataclass, field
-from typing import List, Optional
-import json
-import time
 
 
-# =========================================================
-# AGENT STATE (ADDITIVE ONLY)
-# =========================================================
+""" LangGraph:
+[parse_input]
+      ↓
+[plan]
+      ↓
+[retrieve]
+      ↓
+[generate_answer]
+      ↓
+[self_critique]
+      ↓
+{ hallucinated? }
+    ↙        ↘
+ retry     finalize
+"""
+
 
 @dataclass
 class AgentState:
@@ -48,6 +57,8 @@ class AgentState:
     hallucination_detected: bool = False
     used_fallback: bool = False
     retry_count: int = 0
+
+    file_path: Optional[str] = None
 
 
 # =========================================================
@@ -67,7 +78,6 @@ class FluxTextToImage:
             "Authorization": f"Bearer {hf_token}",
             "Content-Type": "application/json",
         }
-
         if not hf_token:
             raise ValueError("HF_TOKEN must be set")
 
@@ -77,7 +87,6 @@ class FluxTextToImage:
             "parameters": {"width": width, "height": height, "num_inference_steps": steps},
             "options": {"wait_for_model": True},
         }
-
         r = requests.post(self.api_url, headers=self.headers, json=payload, timeout=300)
         if r.status_code != 200:
             raise RuntimeError(r.text)
@@ -130,16 +139,14 @@ class MultimodalProcessor:
 
 
 # =========================================================
-# VECTOR STORE (RESTORED)
+# VECTOR STORE
 # =========================================================
 
 def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
     if not os.path.exists(chroma_dir):
         raise FileNotFoundError(f"Chroma DB not found at: {chroma_dir}")
-
     embeddings = HuggingFaceEmbeddings(model_name=embed_model)
     logger.info("Loading existing Chroma vector store")
-
     return Chroma(
         collection_name=chroma_collection_name,
         embedding_function=embeddings,
@@ -149,13 +156,11 @@ def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) ->
 
 def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
     embeddings = HuggingFaceEmbeddings(model_name=embed_model)
-
     vectordb = Chroma(
         collection_name=chroma_collection_name,
         embedding_function=embeddings,
         persist_directory=chroma_dir,
     )
-
     if vectordb._collection.count() == 0:
         logger.info("Seeding Chroma vector store")
 
@@ -169,15 +174,13 @@ def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -
                 metadata={"type": "text"},
             ),
         ]
-
         vectordb.add_documents(docs)
         vectordb.persist()
-
     return vectordb
 
 
 # =========================================================
-# MULTIMODAL RAG (FILE SAVING RESTORED)
+# MULTIMODAL RAG + LANGGRAPH
 # =========================================================
 
 class MultimodalRAG:
@@ -204,82 +207,19 @@ class MultimodalRAG:
             image_captioning_model, speech_model, self.device
         )
 
-        # 🔒 EXACT ORIGINAL LOGIC
-        if load_vector:
-            self.vectorstore = load_vectorstore(
-                chroma_dir, chroma_collection_name, embed_model, self.logger
-            )
-        else:
-            self.vectorstore = build_vectorstore(
-                chroma_dir, chroma_collection_name, embed_model, self.logger
-            )
+        self.vectorstore = (
+            load_vectorstore(chroma_dir, chroma_collection_name, embed_model, self.logger)
+            if load_vector
+            else build_vectorstore(chroma_dir, chroma_collection_name, embed_model, self.logger)
+        )
 
         self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": k})
-
         self.llm = Ollama(model=local_llm_model, temperature=temperature)
-
         self.text_to_image = FluxTextToImage(
             model_id=model_id_text_to_image, hf_token=hf_token
         )
 
-    # =====================================================
-    # RUN (FILES SAVED)
-    # =====================================================
-
-    def run(self, input_data, input_modality, output_modality, file_path=None):
-        query = self.processor.input_to_text(input_data, input_modality, self.device)
-
-        state = AgentState(
-            raw_input=input_data,
-            parsed_input=query,
-            input_modality=input_modality,
-            output_modality=output_modality,
-        )
-
-        state.plan = self._plan_steps(query)
-
-        docs, _ = self._retrieve_with_confidence(query)
-        state.retrieved_docs = [d.page_content for d in docs]
-        context = "\n".join(state.retrieved_docs)
-
-        answer = self._retry_with_backoff(
-            lambda: self.llm.invoke(self._build_prompt(context, query)),
-            state,
-        )
-
-        answer, confidence = self._self_critique(answer, context)
-
-        if self._detect_hallucination(answer, context):
-            state.hallucination_detected = True
-            answer = self._retry_with_backoff(
-                lambda: self.llm.invoke(self._build_prompt(context, query)),
-                state,
-            )
-
-        state.answer = answer
-        state.confidence = confidence
-
-        # =================================================
-        # ✅ OUTPUT + FILE SAVING (RESTORED)
-        # =================================================
-
-        if output_modality == "text":
-            if file_path:
-                with open(file_path, "w") as f:
-                    f.write(state.answer)
-            return state
-
-        if output_modality == "image":
-            file_path = file_path or "generated_image.png"
-            self.text_to_image.generate(state.answer, out_path=file_path)
-            return state
-
-        if output_modality == "audio":
-            file_path = file_path or "generated_audio.mp3"
-            self.processor.text_to_voice(state.answer, file_path)
-            return state
-
-        raise ValueError("Unsupported output modality")
+        self.graph = self._build_graph()
 
     # =====================================================
     # HELPERS
@@ -295,64 +235,122 @@ class MultimodalRAG:
                 self.logger.warning(f"Retry {i+1}: {e}")
         raise RuntimeError("Failed after retries")
 
-
     def _build_prompt(self, context, query):
-        return f"""
-        Use ONLY the context below.
-
-        Context:
-        {context}
-
-        Question:
-        {query}
-        """
-
+        return f"Context:\n{context}\n\nQuestion:\n{query}"
 
     def _plan_steps(self, query):
         try:
-            return json.loads(
-                self.llm.invoke(f"Return reasoning steps as JSON list:\n{query}")
-            )
+            return json.loads(self.llm.invoke(query))
         except Exception:
-            return ["retrieve context", "answer question"]
-
+            return ["retrieve", "answer"]
 
     def _retrieve_with_confidence(self, query):
         docs = self.retriever.invoke(query)
         return docs, min(1.0, len(docs) / 2)
 
-
     def _self_critique(self, answer, context):
         try:
-            result = json.loads(
-                self.llm.invoke(
-                    f"""
-                    Context:
-                    {context}
-                    Answer:
-                    {answer}
-                    Return JSON {{ "improved_answer": "...", "confidence": 0-1 }}
-                    """
-                )
-            )
+            result = json.loads(self.llm.invoke(answer))
             return result["improved_answer"], float(result["confidence"])
         except Exception:
             return answer, 0.6
 
-
     def _detect_hallucination(self, answer, context):
         try:
-            result = json.loads(
-                self.llm.invoke(
-                    f"""
-                    Context:
-                    {context}
-                    Answer:
-                    {answer}
-                    Return JSON {{ "hallucination": true/false }}
-                    """
-                )
-            )
+            result = json.loads(self.llm.invoke(answer))
             return result.get("hallucination", False)
         except Exception:
             return False
+
+    # =====================================================
+    # LANGGRAPH NODES
+    # =====================================================
+
+    def _parse(self, state: AgentState):
+        state.parsed_input = self.processor.input_to_text(
+            state.raw_input, state.input_modality, self.device
+        )
+        return state
+
+    def _plan(self, state: AgentState):
+        state.plan = self._plan_steps(state.parsed_input)
+        return state
+
+    def _retrieve(self, state: AgentState):
+        docs, _ = self._retrieve_with_confidence(state.parsed_input)
+        state.retrieved_docs = [d.page_content for d in docs]
+        return state
+
+    def _generate(self, state: AgentState):
+        context = "\n".join(state.retrieved_docs)
+        state.answer = self._retry_with_backoff(
+            lambda: self.llm.invoke(self._build_prompt(context, state.parsed_input)),
+            state,
+        )
+        return state
+
+    def _critique(self, state: AgentState):
+        context = "\n".join(state.retrieved_docs)
+        state.answer, state.confidence = self._self_critique(state.answer, context)
+        state.hallucination_detected = self._detect_hallucination(state.answer, context)
+        return state
+
+    def _route(self, state: AgentState):
+        return "retry" if state.hallucination_detected else "finalize"
+
+    def _finalize(self, state: AgentState):
+        if state.output_modality == "text":
+            if state.file_path:
+                with open(state.file_path, "w") as f:
+                    f.write(state.answer)
+
+        elif state.output_modality == "image":
+            out = state.file_path or "generated_image.png"
+            self.text_to_image.generate(state.answer, out_path=out)
+
+        elif state.output_modality == "audio":
+            out = state.file_path or "generated_audio.mp3"
+            self.processor.text_to_voice(state.answer, out)
+
+        return state
+
+    # =====================================================
+    # BUILD GRAPH
+    # =====================================================
+
+    def _build_graph(self):
+        g = StateGraph(AgentState)
+
+        g.add_node("parse", self._parse)
+        g.add_node("plan", self._plan)
+        g.add_node("retrieve", self._retrieve)
+        g.add_node("generate", self._generate)
+        g.add_node("critique", self._critique)
+        g.add_node("finalize", self._finalize)
+
+        g.set_entry_point("parse")
+        g.add_edge("parse", "plan")
+        g.add_edge("plan", "retrieve")
+        g.add_edge("retrieve", "generate")
+        g.add_edge("generate", "critique")
+
+        g.add_conditional_edges(
+            "critique",
+            self._route,
+            {"retry": "generate", "finalize": "finalize"},
+        )
+
+        g.add_edge("finalize", END)
+        return g.compile()
+
+    # ================= PUBLIC RUN =================
+
+    def run(self, input_data, input_modality, output_modality, file_path=None):
+        state = AgentState(
+            raw_input=input_data,
+            parsed_input="",
+            input_modality=input_modality,
+            output_modality=output_modality,
+            file_path=file_path,
+        )
+        return self.graph.invoke(state)
