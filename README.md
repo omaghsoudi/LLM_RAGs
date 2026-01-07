@@ -34,7 +34,9 @@ LLM_RAGs/
 │   └── (installation helper scripts)
 └── src/
     ├── __init__.py
-    ├── common_modules/
+    ├── Agentic_AI/
+    │   └── (various dataset files and subfolders)
+    ├── Common_modules/
     │   └── (various dataset files and subfolders)
     ├── LLMs_training/
     │   └── (various dataset files and subfolders)
@@ -61,7 +63,6 @@ bash <(curl -fsSL https://raw.githubusercontent.com/omaghsoudi/LLM_RAGs/main/ini
 git clone https://github.com/omaghsoudi/LLM_RAGs.git
 cd LLM_RAGs
 poetry install
-poetry shell
 ```
 
 ## 📜 License
