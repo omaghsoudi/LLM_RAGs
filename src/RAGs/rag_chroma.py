@@ -21,23 +21,18 @@ def get_embedding_function():
     return embeddings
 
 
-
 PROMPT_TEMPLATE = """
-Answer the question based only on the following context:
+                    Answer the question based only on the following context:
+                    
+                    {context}
+                    
+                    ---
+                    
+                    Answer the question based on the above context: {question}
+                """
 
-{context}
 
----
-
-Answer the question based on the above context: {question}
-"""
-
-
-@hydra.main(
-    config_path="configs",
-    config_name="rag_chroma",
-    version_base="1.1"
-)
+@hydra.main(config_path="configs", config_name="rag_chroma", version_base="1.1")
 def run(cfg: DictConfig):
     logger = setup_logger(path_to_logger=cfg.logging.file)
 
@@ -54,22 +49,18 @@ def run(cfg: DictConfig):
     # --------------------------------------------------
     db = Chroma(
         persist_directory=cfg.chroma.persist_directory,
-        embedding_function=embedding_function
+        embedding_function=embedding_function,
     )
 
     # --------------------------------------------------
     # Prompt
     # --------------------------------------------------
-    prompt_template = ChatPromptTemplate.from_template(
-        cfg.prompt.template
-    )
+    prompt_template = ChatPromptTemplate.from_template(cfg.prompt.template)
 
     # --------------------------------------------------
     # LLM
     # --------------------------------------------------
-    llm = Ollama(
-        model=cfg.llm.model
-    )
+    llm = Ollama(model=cfg.llm.model)
 
     # --------------------------------------------------
     # Queries
@@ -77,26 +68,15 @@ def run(cfg: DictConfig):
     for query_text in cfg.queries:
         logger.info(f"\nQUESTION: {query_text}")
 
-        results = db.similarity_search_with_score(
-            query_text,
-            k=cfg.retriever.k
-        )
+        results = db.similarity_search_with_score(query_text, k=cfg.retriever.k)
 
-        context_text = "\n\n---\n\n".join(
-            [doc.page_content for doc, _ in results]
-        )
+        context_text = "\n\n---\n\n".join([doc.page_content for doc, _ in results])
 
-        prompt = prompt_template.format(
-            context=context_text,
-            question=query_text
-        )
+        prompt = prompt_template.format(context=context_text, question=query_text)
 
         response_text = llm.invoke(prompt)
 
-        sources = [
-            doc.metadata.get("id", None)
-            for doc, _ in results
-        ]
+        sources = [doc.metadata.get("id", None) for doc, _ in results]
 
         logger.info("ANSWER:")
         logger.info(response_text)

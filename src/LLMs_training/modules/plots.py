@@ -1,4 +1,3 @@
-
 import matplotlib.pyplot as plt
 
 
@@ -16,7 +15,9 @@ def plot_losses(tokens_seen, train_losses, val_losses, out_path="loss.pdf"):
     plt.savefig(out_path)
 
 
-def plot_losses_train_val(epochs_seen, tokens_seen, train_losses, val_losses, out_path="loss.pdf"):
+def plot_losses_train_val(
+    epochs_seen, tokens_seen, train_losses, val_losses, out_path="loss.pdf"
+):
     fig, ax1 = plt.subplots(figsize=(12, 6))
 
     # Plot training and validation loss against epochs

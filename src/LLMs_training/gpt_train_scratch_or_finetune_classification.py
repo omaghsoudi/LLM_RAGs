@@ -9,7 +9,7 @@ from omegaconf import DictConfig, OmegaConf
 from LLMs_training.modules.models import (
     GPTModel,
     generate_text_simple,
-    update_gpt_model_config
+    update_gpt_model_config,
 )
 from LLMs_training.modules.datasets import create_dataloader
 from LLMs_training.modules.weights import load_weights_into_gpt
@@ -18,7 +18,6 @@ from LLMs_training.modules.plots import plot_losses
 from Common_modules.initialize import setup_logger
 from Common_modules.losses import calc_loss_loader, calc_loss_batch
 from Common_modules.tokens_helpers import token_ids_to_text, text_to_token_ids
-
 
 
 def evaluate_model(model, train_loader, val_loader, device, eval_iter):
@@ -51,14 +50,7 @@ def generate_and_print_sample(model, tokenizer, device, start_context, logger):
 # Training loop
 # ---------------------------------------------------------
 def train_model(
-    model,
-    train_loader,
-    val_loader,
-    optimizer,
-    device,
-    cfg,
-    tokenizer,
-    logger
+    model, train_loader, val_loader, optimizer, device, cfg, tokenizer, logger
 ):
     train_losses, val_losses, tokens_seen = [], [], []
     total_tokens = 0
@@ -83,7 +75,7 @@ def train_model(
                 tokens_seen.append(total_tokens)
 
                 logger.info(
-                    f"Epoch {epoch+1} | Step {global_step:06d} | "
+                    f"Epoch {epoch + 1} | Step {global_step:06d} | "
                     f"Train {train_loss:.3f} | Val {val_loss:.3f}"
                 )
 
@@ -97,9 +89,12 @@ def train_model(
 # ---------------------------------------------------------
 # Hydra main
 # ---------------------------------------------------------
-@hydra.main(version_base="1.3", config_path="configs", config_name="gpt_train_scratch_or_finetune_classification")
+@hydra.main(
+    version_base="1.3",
+    config_path="configs",
+    config_name="gpt_train_scratch_or_finetune_classification",
+)
 def main(cfg: DictConfig):
-
     logger = setup_logger(path_to_logger=cfg.logging.file)
 
     output_dir = cfg.output_dir
@@ -164,10 +159,10 @@ def main(cfg: DictConfig):
     model.to(device)
 
     if gpt_hf:
-        logger.info(f"Loading pretrained model")
+        logger.info("Loading pretrained model")
         model = load_weights_into_gpt(model, gpt_hf, cfg.model.n_layers)
 
-    logger.info(f"model is loaded")
+    logger.info("model is loaded")
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -178,34 +173,32 @@ def main(cfg: DictConfig):
     tokenizer = tiktoken.get_encoding(cfg.tiktoken.model_name)
 
     if cfg.model.fine_tune:
-        assert cfg.model.load_pretrained_hf_model, "fine_tune is set to True, so load_pretrained_hf_model should be set to True"
-        logger.info(f"fine_tune is set to True")
+        assert cfg.model.load_pretrained_hf_model, (
+            "fine_tune is set to True, so load_pretrained_hf_model should be set to True"
+        )
+        logger.info("fine_tune is set to True")
         for param in model.parameters():
             param.requires_grad = False
-        model.out_head = torch.nn.Linear(in_features=cfg.model.emb_dim, out_features=cfg.model.num_classes)
+        model.out_head = torch.nn.Linear(
+            in_features=cfg.model.emb_dim, out_features=cfg.model.num_classes
+        )
         model.to(device)
         for param in model.trf_blocks[-1].parameters():
             param.requires_grad = True
         for param in model.final_norm.parameters():
             param.requires_grad = True
 
-
-    logger.info(f"Start training")
+    logger.info("Start training")
     train_losses, val_losses, tokens_seen = train_model(
-        model,
-        train_loader,
-        val_loader,
-        optimizer,
-        device,
-        cfg,
-        tokenizer,
-        logger
+        model, train_loader, val_loader, optimizer, device, cfg, tokenizer, logger
     )
 
-    plot_losses(tokens_seen, train_losses, val_losses, out_path=f"{output_dir}/loss.pdf")
+    plot_losses(
+        tokens_seen, train_losses, val_losses, out_path=f"{output_dir}/loss.pdf"
+    )
     torch.save(model.state_dict(), f"{output_dir}/model.pth")
     logger.info(f"model.pth is saved: {output_dir}/model.pth")
-    logger.info(f"DONE")
+    logger.info("DONE")
 
 
 if __name__ == "__main__":

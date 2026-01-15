@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import requests
 from io import BytesIO
-from typing import Literal
 
 import torch
 from PIL import Image
@@ -33,6 +32,7 @@ import time
 # AGENT STATE (ADDITIVE ONLY)
 # =========================================================
 
+
 @dataclass
 class AgentState:
     raw_input: str
@@ -54,6 +54,7 @@ class AgentState:
 # FLUX.1 TEXT → IMAGE
 # =========================================================
 
+
 class FluxTextToImage:
     def __init__(
         self,
@@ -74,7 +75,11 @@ class FluxTextToImage:
     def generate(self, prompt, out_path="output.png", width=1024, height=1024, steps=4):
         payload = {
             "inputs": prompt,
-            "parameters": {"width": width, "height": height, "num_inference_steps": steps},
+            "parameters": {
+                "width": width,
+                "height": height,
+                "num_inference_steps": steps,
+            },
             "options": {"wait_for_model": True},
         }
 
@@ -90,6 +95,7 @@ class FluxTextToImage:
 # =========================================================
 # MULTIMODAL PROCESSOR
 # =========================================================
+
 
 class MultimodalProcessor:
     def __init__(self, image_captioning_model, speech_model, device):
@@ -133,6 +139,7 @@ class MultimodalProcessor:
 # VECTOR STORE (RESTORED)
 # =========================================================
 
+
 def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
     if not os.path.exists(chroma_dir):
         raise FileNotFoundError(f"Chroma DB not found at: {chroma_dir}")
@@ -147,7 +154,9 @@ def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) ->
     )
 
 
-def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
+def build_vectorstore(
+    chroma_dir, chroma_collection_name, embed_model, logger
+) -> Chroma:
     embeddings = HuggingFaceEmbeddings(model_name=embed_model)
 
     vectordb = Chroma(
@@ -179,6 +188,7 @@ def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -
 # =========================================================
 # MULTIMODAL RAG (FILE SAVING RESTORED)
 # =========================================================
+
 
 class MultimodalRAG:
     def __init__(
@@ -291,10 +301,9 @@ class MultimodalRAG:
                 return fn()
             except Exception as e:
                 state.retry_count += 1
-                time.sleep(2 ** i)
-                self.logger.warning(f"Retry {i+1}: {e}")
+                time.sleep(2**i)
+                self.logger.warning(f"Retry {i + 1}: {e}")
         raise RuntimeError("Failed after retries")
-
 
     def _build_prompt(self, context, query):
         return f"""
@@ -307,7 +316,6 @@ class MultimodalRAG:
         {query}
         """
 
-
     def _plan_steps(self, query):
         try:
             return json.loads(
@@ -316,11 +324,9 @@ class MultimodalRAG:
         except Exception:
             return ["retrieve context", "answer question"]
 
-
     def _retrieve_with_confidence(self, query):
         docs = self.retriever.invoke(query)
         return docs, min(1.0, len(docs) / 2)
-
 
     def _self_critique(self, answer, context):
         try:
@@ -338,7 +344,6 @@ class MultimodalRAG:
             return result["improved_answer"], float(result["confidence"])
         except Exception:
             return answer, 0.6
-
 
     def _detect_hallucination(self, answer, context):
         try:

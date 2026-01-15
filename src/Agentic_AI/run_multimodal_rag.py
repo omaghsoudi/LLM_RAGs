@@ -18,7 +18,6 @@ from Common_modules.initialize import setup_logger
     config_name="run_multimodal_rag",
 )
 def main(cfg: DictConfig):
-
     # --------------------------------------------------
     # Setup
     # --------------------------------------------------
@@ -50,7 +49,7 @@ def main(cfg: DictConfig):
     # --------------------------------------------------
     # Execute Runs
     # --------------------------------------------------
-    logger.info("*"*100)
+    logger.info("*" * 100)
     for run_cfg in cfg.runs:
         logger.info(f"\n🔹 RUN: {run_cfg.name}")
         logger.info(f"Comment: {run_cfg.comment}")
@@ -58,9 +57,7 @@ def main(cfg: DictConfig):
         # Input resolution
         input_modality = run_cfg.input.modality
         input_data = (
-            run_cfg.input.data
-            if "data" in run_cfg.input
-            else run_cfg.input.file
+            run_cfg.input.data if "data" in run_cfg.input else run_cfg.input.file
         )
 
         # Output resolution
@@ -81,17 +78,25 @@ def main(cfg: DictConfig):
             # This is for LongGraphResult object
             logger.info(f"Input answer: {result['parsed_input']}")
             logger.info(f"Result answer: {result['answer']}")
-            logger.info(f"Detailed Processes: {result['plan']}, {result['retrieved_docs']}")
-            logger.info(f"Result preview: confidence score={result['confidence']}; haulucination={result['hallucination_detected']}; retry count={result['retry_count']}")
+            logger.info(
+                f"Detailed Processes: {result['plan']}, {result['retrieved_docs']}"
+            )
+            logger.info(
+                f"Result preview: confidence score={result['confidence']}; haulucination={result['hallucination_detected']}; retry count={result['retry_count']}"
+            )
             logger.info(f"Result preview: used fallback={result['used_fallback']}")
         except Exception:
             # This is for older versions
             result = result.__dict__
             logger.info(f"Input answer: {result['parsed_input']}")
             logger.info(f"Result answer: {result['answer']}")
-            logger.info(f"Detailed Processes: {result['plan']}, {result['retrieved_docs']}")
-            logger.info(f"Result preview: confidence score={result['confidence']}; haulucination={result['hallucination_detected']}; retry count={result['retry_count']}")
-        logger.info("-"*100)
+            logger.info(
+                f"Detailed Processes: {result['plan']}, {result['retrieved_docs']}"
+            )
+            logger.info(
+                f"Result preview: confidence score={result['confidence']}; haulucination={result['hallucination_detected']}; retry count={result['retry_count']}"
+            )
+        logger.info("-" * 100)
 
     logger.info("\n✅ All multimodal RAG runs completed successfully!")
 

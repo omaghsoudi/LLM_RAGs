@@ -21,12 +21,11 @@ from Eval_models.modules.evaluation import (
     compute_metrics,
     agreement_score,
     plot_metrics_per_sample,
-    plot_aggregated
+    plot_aggregated,
 )
 from Eval_models.modules.model_related import generate, load_model
 from Eval_models.modules.llm_judge import judge_correctness
 from Eval_models.modules.claim_verification import claim_support_metrics
-
 
 
 # ------------------------------------------------------------------
@@ -40,9 +39,9 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # Hydra Entrypoint
 # ------------------------------------------------------------------
 
+
 @hydra.main(version_base="1.3", config_path="configs", config_name="llm_gen_eval")
 def main(cfg: DictConfig):
-
     logger = setup_logger(cfg.logging.file)
     logger.info("Config:\n%s", OmegaConf.to_yaml(cfg))
 
@@ -59,10 +58,10 @@ def main(cfg: DictConfig):
     ]
 
     prompt = generate_few_shots(
-                question,
-                cfg.dataset.few_shot_k,
-                cfg,
-            )
+        question,
+        cfg.dataset.few_shot_k,
+        cfg,
+    )
 
     output_dir = cfg.output_dir
 
@@ -108,8 +107,26 @@ def main(cfg: DictConfig):
 
         logger.info("Aggregated metrics: %s", aggregated)
 
-        plot_metrics_per_sample(metrics_list, cfg, output_dir, additional_metrics_list=["llm_correctness", "claim_support_rate", "hallucination_rate"])
-        plot_aggregated(aggregated, cfg, output_dir, additional_metrics_list=["llm_correctness", "claim_support_rate", "hallucination_rate"])
+        plot_metrics_per_sample(
+            metrics_list,
+            cfg,
+            output_dir,
+            additional_metrics_list=[
+                "llm_correctness",
+                "claim_support_rate",
+                "hallucination_rate",
+            ],
+        )
+        plot_aggregated(
+            aggregated,
+            cfg,
+            output_dir,
+            additional_metrics_list=[
+                "llm_correctness",
+                "claim_support_rate",
+                "hallucination_rate",
+            ],
+        )
 
         metrics_df = pd.DataFrame(metrics_list)
         metrics_df.to_csv(os.path.join(output_dir, "metrics.csv"))
@@ -140,11 +157,19 @@ def main(cfg: DictConfig):
         metrics.update(claim_metrics)
 
         logger.info("Metrics: %s", metrics)
-        plot_aggregated(metrics, cfg, output_dir, additional_metrics_list=["llm_correctness", "claim_support_rate", "hallucination_rate"])
+        plot_aggregated(
+            metrics,
+            cfg,
+            output_dir,
+            additional_metrics_list=[
+                "llm_correctness",
+                "claim_support_rate",
+                "hallucination_rate",
+            ],
+        )
 
         metrics_df = pd.DataFrame.from_dict(metrics, orient="index")
         metrics_df.to_csv(os.path.join(output_dir, "aggregated_metrics.csv"))
-
 
 
 if __name__ == "__main__":

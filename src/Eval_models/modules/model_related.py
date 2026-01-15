@@ -8,8 +8,20 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 # Generation
 # ------------------------------------------------------------------
 
+
 @torch.no_grad()
 def generate(prompt: str, cfg, tokenizer=None, model=None) -> str:
+    """
+    generate the prediction
+    Args:
+        prompt:
+        cfg:
+        tokenizer:
+        model:
+
+    Returns:
+
+    """
     if cfg.models.backend == "hf":
         inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
         outputs = model.generate(
@@ -20,7 +32,7 @@ def generate(prompt: str, cfg, tokenizer=None, model=None) -> str:
             pad_token_id=tokenizer.eos_token_id,
         )
         decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        return decoded[len(prompt):].strip() or "<EMPTY>"
+        return decoded[len(prompt) :].strip() or "<EMPTY>"
 
     response = ollama.generate(
         model=cfg.models.name,
@@ -37,7 +49,16 @@ def generate(prompt: str, cfg, tokenizer=None, model=None) -> str:
 # Model Loader
 # ------------------------------------------------------------------
 
+
 def load_model(cfg):
+    """
+    load the model
+    Args:
+        cfg:
+
+    Returns:
+
+    """
     if cfg.models.backend == "hf":
         tokenizer = AutoTokenizer.from_pretrained(cfg.models.name)
         model = AutoModelForCausalLM.from_pretrained(

@@ -23,11 +23,7 @@ def get_embedding_function():
     return embeddings
 
 
-@hydra.main(
-    config_path="configs",
-    config_name="chroma_ingest",
-    version_base="1.1.0"
-)
+@hydra.main(config_path="configs", config_name="chroma_ingest", version_base="1.1.0")
 def main(cfg: DictConfig):
     logger = setup_logger(path_to_logger=cfg.logging.file)
 
@@ -57,11 +53,7 @@ def load_documents(data_path: str):
     return loader.load()
 
 
-def split_documents(
-    documents: list[Document],
-    splitter_cfg: DictConfig,
-    logger
-):
+def split_documents(documents: list[Document], splitter_cfg: DictConfig, logger):
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=splitter_cfg.chunk_size,
         chunk_overlap=splitter_cfg.chunk_overlap,
@@ -71,11 +63,7 @@ def split_documents(
     return splitter.split_documents(documents)
 
 
-def add_to_chroma(
-    chunks: list[Document],
-    persist_path: str,
-    logger
-):
+def add_to_chroma(chunks: list[Document], persist_path: str, logger):
     db = Chroma(
         persist_directory=persist_path,
         embedding_function=get_embedding_function(),
@@ -88,8 +76,7 @@ def add_to_chroma(
     logger.info(f"Number of existing documents in DB: {len(existing_ids)}")
 
     new_chunks = [
-        chunk for chunk in chunks_with_ids
-        if chunk.metadata["id"] not in existing_ids
+        chunk for chunk in chunks_with_ids if chunk.metadata["id"] not in existing_ids
     ]
 
     if new_chunks:

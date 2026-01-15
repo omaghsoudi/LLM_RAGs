@@ -16,14 +16,18 @@ class MultiHeadAttention(nn.Module):
 
         self.d_out = d_out
         self.num_heads = num_heads
-        self.head_dim = d_out // num_heads  # Reduce the projection dim to match desired output dim
+        self.head_dim = (
+            d_out // num_heads
+        )  # Reduce the projection dim to match desired output dim
 
         self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.out_proj = nn.Linear(d_out, d_out)  # Linear layer to combine head outputs
         self.dropout = nn.Dropout(dropout)
-        self.register_buffer("mask", torch.triu(torch.ones(context_length, context_length), diagonal=1))
+        self.register_buffer(
+            "mask", torch.triu(torch.ones(context_length, context_length), diagonal=1)
+        )
 
     def forward(self, x):
         b, num_tokens, d_in = x.shape
@@ -52,7 +56,7 @@ class MultiHeadAttention(nn.Module):
         # Use the mask to fill attention scores
         attn_scores.masked_fill_(mask_bool, -torch.inf)
 
-        attn_weights = torch.softmax(attn_scores / keys.shape[-1]**0.5, dim=-1)
+        attn_weights = torch.softmax(attn_scores / keys.shape[-1] ** 0.5, dim=-1)
         attn_weights = self.dropout(attn_weights)
 
         # Shape: (b, num_tokens, num_heads, head_dim)
@@ -84,10 +88,17 @@ class GELU(nn.Module):
         super().__init__()
 
     def forward(self, x):
-        return 0.5 * x * (1 + torch.tanh(
-            torch.sqrt(torch.tensor(2.0 / torch.pi)) *
-            (x + 0.044715 * torch.pow(x, 3))
-        ))
+        return (
+            0.5
+            * x
+            * (
+                1
+                + torch.tanh(
+                    torch.sqrt(torch.tensor(2.0 / torch.pi))
+                    * (x + 0.044715 * torch.pow(x, 3))
+                )
+            )
+        )
 
 
 class FeedForward(nn.Module):
@@ -112,7 +123,8 @@ class TransformerBlock(nn.Module):
             context_length=cfg["context_length"],
             num_heads=cfg["n_heads"],
             dropout=cfg["drop_rate"],
-            qkv_bias=cfg["qkv_bias"])
+            qkv_bias=cfg["qkv_bias"],
+        )
         self.ff = FeedForward(cfg)
         self.norm1 = LayerNorm(cfg["emb_dim"])
         self.norm2 = LayerNorm(cfg["emb_dim"])
@@ -122,7 +134,7 @@ class TransformerBlock(nn.Module):
         # Shortcut connection for attention block
         shortcut = x
         x = self.norm1(x)
-        x = self.att(x)   # Shape [batch_size, num_tokens, emb_size]
+        x = self.att(x)  # Shape [batch_size, num_tokens, emb_size]
         x = self.drop_shortcut(x)
         x = x + shortcut  # Add the original input back
 
@@ -144,7 +156,8 @@ class GPTModel(nn.Module):
         self.drop_emb = nn.Dropout(cfg["drop_rate"])
 
         self.trf_blocks = nn.Sequential(
-            *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
+            *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])]
+        )
 
         self.final_norm = LayerNorm(cfg["emb_dim"])
         self.out_head = nn.Linear(cfg["emb_dim"], cfg["vocab_size"], bias=False)
@@ -164,7 +177,6 @@ class GPTModel(nn.Module):
 def generate_text_simple(model, idx, max_new_tokens, context_size):
     # idx is (B, T) array of indices in the current context
     for _ in range(max_new_tokens):
-
         # Crop current context if it exceeds the supported context size
         # E.g., if LLM supports only 5 tokens, and the context size is 10
         # then only the last 5 tokens are used as context
@@ -187,8 +199,9 @@ def generate_text_simple(model, idx, max_new_tokens, context_size):
     return idx
 
 
-def generate(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=None, eos_id=None):
-
+def generate(
+    model, idx, max_new_tokens, context_size, temperature=0.0, top_k=None, eos_id=None
+):
     # For-loop is the same as before: Get logits, and only focus on last time step
     for _ in range(max_new_tokens):
         idx_cond = idx[:, -context_size:]
@@ -201,7 +214,9 @@ def generate(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=No
             # Keep only top_k values
             top_logits, _ = torch.topk(logits, top_k)
             min_val = top_logits[:, -1]
-            logits = torch.where(logits < min_val, torch.tensor(float("-inf")).to(logits.device), logits)
+            logits = torch.where(
+                logits < min_val, torch.tensor(float("-inf")).to(logits.device), logits
+            )
 
         # New: Apply temperature scaling
         if temperature > 0.0:
@@ -221,7 +236,9 @@ def generate(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=No
         else:
             idx_next = torch.argmax(logits, dim=-1, keepdim=True)  # (batch_size, 1)
 
-        if idx_next == eos_id:  # Stop generating early if end-of-sequence token is encountered and eos_id is specified
+        if (
+            idx_next == eos_id
+        ):  # Stop generating early if end-of-sequence token is encountered and eos_id is specified
             break
 
         # Same as before: append sampled index to the running sequence
@@ -231,15 +248,14 @@ def generate(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=No
 
 
 if __name__ == "__main__":
-
     GPT_CONFIG_124M = {
-        "vocab_size": 50257,     # Vocabulary size
+        "vocab_size": 50257,  # Vocabulary size
         "context_length": 1024,  # Context length
-        "emb_dim": 768,          # Embedding dimension
-        "n_heads": 12,           # Number of attention heads
-        "n_layers": 12,          # Number of layers
-        "drop_rate": 0.1,        # Dropout rate
-        "qkv_bias": False        # Query-Key-Value bias
+        "emb_dim": 768,  # Embedding dimension
+        "n_heads": 12,  # Number of attention heads
+        "n_layers": 12,  # Number of layers
+        "drop_rate": 0.1,  # Dropout rate
+        "qkv_bias": False,  # Query-Key-Value bias
     }
 
     torch.manual_seed(123)
@@ -252,7 +268,7 @@ if __name__ == "__main__":
     encoded = tokenizer.encode(start_context)
     encoded_tensor = torch.tensor(encoded).unsqueeze(0)
 
-    print(f"\n{50*'='}\n{22*' '}IN\n{50*'='}")
+    print(f"\n{50 * '='}\n{22 * ' '}IN\n{50 * '='}")
     print("\nInput text:", start_context)
     print("Encoded input text:", encoded)
     print("encoded_tensor.shape:", encoded_tensor.shape)
@@ -261,15 +277,14 @@ if __name__ == "__main__":
         model=model,
         idx=encoded_tensor,
         max_new_tokens=10,
-        context_size=GPT_CONFIG_124M["context_length"]
+        context_size=GPT_CONFIG_124M["context_length"],
     )
     decoded_text = tokenizer.decode(out.squeeze(0).tolist())
 
-    print(f"\n\n{50*'='}\n{22*' '}OUT\n{50*'='}")
+    print(f"\n\n{50 * '='}\n{22 * ' '}OUT\n{50 * '='}")
     print("\nOutput:", out)
     print("Output length:", len(out[0]))
     print("Output text:", decoded_text)
-
 
 
 def update_gpt_model_config(cfg):
@@ -277,28 +292,46 @@ def update_gpt_model_config(cfg):
         "gpt2-small (124M)": "openai-community/gpt2",
         "gpt2-medium (355M)": "openai-community/gpt2-medium",
         "gpt2-large (774M)": "openai-community/gpt2-large",
-        "gpt2-xl (1558M)": "openai-community/gpt2-xl"
+        "gpt2-xl (1558M)": "openai-community/gpt2-xl",
     }
 
     MODEL_CONFIGS = {
         "gpt2-small (124M)": {
-            "emb_dim": 768, "n_layers": 12, "n_heads": 12, "context_length": 1024, "qkv_bias": True
+            "emb_dim": 768,
+            "n_layers": 12,
+            "n_heads": 12,
+            "context_length": 1024,
+            "qkv_bias": True,
         },
         "gpt2-medium (355M)": {
-            "emb_dim": 1024, "n_layers": 24, "n_heads": 16, "context_length": 1024, "qkv_bias": True
+            "emb_dim": 1024,
+            "n_layers": 24,
+            "n_heads": 16,
+            "context_length": 1024,
+            "qkv_bias": True,
         },
         "gpt2-large (774M)": {
-            "emb_dim": 1280, "n_layers": 36, "n_heads": 20, "context_length": 1024, "qkv_bias": True
+            "emb_dim": 1280,
+            "n_layers": 36,
+            "n_heads": 20,
+            "context_length": 1024,
+            "qkv_bias": True,
         },
         "gpt2-xl (1558M)": {
-            "emb_dim": 1600, "n_layers": 48, "n_heads": 25, "context_length": 1024, "qkv_bias": True
+            "emb_dim": 1600,
+            "n_layers": 48,
+            "n_heads": 25,
+            "context_length": 1024,
+            "qkv_bias": True,
         },
     }
     chosen_model = cfg.model.model_name
     cfg.model.update(MODEL_CONFIGS[chosen_model])
 
     if cfg.model.load_pretrained_hf_model:
-        gpt_hf = GPT2Model.from_pretrained(MODEL_NAMES[chosen_model], cache_dir=f"{cfg.output_dir}/checkpoints")
+        gpt_hf = GPT2Model.from_pretrained(
+            MODEL_NAMES[chosen_model], cache_dir=f"{cfg.output_dir}/checkpoints"
+        )
         gpt_hf.eval()
     else:
         gpt_hf = None

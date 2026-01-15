@@ -5,9 +5,29 @@ from omegaconf import DictConfig
 
 
 @torch.no_grad()
-def call_llm(prompt: str, backend: str, model_name: str,
-             temperature: float, max_new_tokens: int,
-             tokenizer=None, model=None) -> str:
+def call_llm(
+    prompt: str,
+    backend: str,
+    model_name: str,
+    temperature: float,
+    max_new_tokens: int,
+    tokenizer=None,
+    model=None,
+) -> str:
+    """
+    calling llm
+    Args:
+        prompt:
+        backend:
+        model_name:
+        temperature:
+        max_new_tokens:
+        tokenizer:
+        model:
+
+    Returns:
+
+    """
     if backend == "hf":
         inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
         outputs = model.generate(
@@ -31,7 +51,9 @@ def call_llm(prompt: str, backend: str, model_name: str,
     )
     return response["response"].strip()
 
+
 _FEWSHOT_CACHE: Dict[str, str] = {}
+
 
 def generate_few_shots(
     q: str,
@@ -40,21 +62,28 @@ def generate_few_shots(
 ) -> str:
     """
     Generate k few-shot QA examples using a separate LLM.
+    Args:
+        q:
+        k:
+        cfg:
+
+    Returns:
+
     """
 
     if cfg.shots.cache and q in _FEWSHOT_CACHE:
         return _FEWSHOT_CACHE[q]
 
     system_prompt = f"""
-Generate {k} high-quality factual question-answer examples.
-Keep answers concise, neutral, and correct.
-Format strictly as:
-
-Q: ...
-A: ...
-
-Do NOT include explanations or extra text.
-"""
+                        Generate {k} high-quality factual question-answer examples.
+                        Keep answers concise, neutral, and correct.
+                        Format strictly as:
+                        
+                        Q: ...
+                        A: ...
+                        
+                        Do NOT include explanations or extra text.
+                    """
 
     full_prompt = f"{system_prompt}\nTopic example: {q}"
 

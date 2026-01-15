@@ -12,6 +12,7 @@ import ollama
 # Claim Decomposition
 # ------------------------------------------------------------------
 
+
 @torch.no_grad()
 def decompose_claims(
     answer: str,
@@ -27,19 +28,19 @@ def decompose_claims(
         return []
 
     prompt = f"""
-Break the following answer into a list of atomic factual claims.
-
-Rules:
-- One fact per line
-- No explanations
-- No duplicates
-- Use declarative sentences
-
-Answer:
-{answer}
-
-Claims:
-"""
+                Break the following answer into a list of atomic factual claims.
+                
+                Rules:
+                - One fact per line
+                - No explanations
+                - No duplicates
+                - Use declarative sentences
+                
+                Answer:
+                {answer}
+                
+                Claims:
+            """
 
     if cfg.claims.backend == "hf":
         inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
@@ -63,11 +64,7 @@ Claims:
         )
         text = response["response"]
 
-    claims = [
-        c.strip("-• ").strip()
-        for c in text.splitlines()
-        if len(c.strip()) > 5
-    ]
+    claims = [c.strip("-• ").strip() for c in text.splitlines() if len(c.strip()) > 5]
 
     return list(dict.fromkeys(claims))  # deduplicate
 
@@ -75,6 +72,7 @@ Claims:
 # ------------------------------------------------------------------
 # Claim Verification
 # ------------------------------------------------------------------
+
 
 @torch.no_grad()
 def verify_claim(
@@ -92,21 +90,21 @@ def verify_claim(
     ref_block = "\n".join(f"- {r}" for r in references)
 
     prompt = f"""
-Determine whether the following claim is supported by the references.
-
-Claim:
-{claim}
-
-References:
-{ref_block}
-
-Scoring:
-- 1.0 = fully supported
-- 0.5 = partially supported or implied
-- 0.0 = not supported or contradicted
-
-Respond with ONLY a number.
-"""
+                Determine whether the following claim is supported by the references.
+                
+                Claim:
+                {claim}
+                
+                References:
+                {ref_block}
+                
+                Scoring:
+                - 1.0 = fully supported
+                - 0.5 = partially supported or implied
+                - 0.0 = not supported or contradicted
+                
+                Respond with ONLY a number.
+            """
 
     if cfg.claims.backend == "hf":
         inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
@@ -142,6 +140,7 @@ Respond with ONLY a number.
 # End-to-end Claim Evaluation
 # ------------------------------------------------------------------
 
+
 def claim_support_metrics(
     answer: str,
     references: List[str],
@@ -165,10 +164,7 @@ def claim_support_metrics(
             "num_claims": 0,
         }
 
-    scores = [
-        verify_claim(c, references, cfg, tokenizer, model)
-        for c in claims
-    ]
+    scores = [verify_claim(c, references, cfg, tokenizer, model) for c in claims]
 
     support_rate = float(sum(scores) / len(scores))
     hallucination_rate = 1.0 - support_rate

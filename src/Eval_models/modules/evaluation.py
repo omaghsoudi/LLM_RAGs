@@ -22,25 +22,43 @@ METRIC_KEYS = ["bleu", "rouge", "os_sim", "bertscore"]
 
 
 def agreement_score(outputs: List[str]) -> float:
+    """
+    agreement score function.
+
+    Args:
+        outputs:
+
+    Returns:
+
+    """
     valid = [o for o in outputs if o != "<EMPTY>"]
     if len(valid) < 2:
         return 0.0
     embs = embedder.encode(valid, normalize_embeddings=True)
     sims = [
-        float(np.dot(embs[i], embs[j]))
-        for i, j in combinations(range(len(embs)), 2)
+        float(np.dot(embs[i], embs[j])) for i, j in combinations(range(len(embs)), 2)
     ]
     return float(np.mean(sims))
 
+
 def compute_metrics(output: str, refs: List[str]) -> Dict[str, float]:
+    """
+    compute_metrics function.
+    Args:
+        output:
+        refs:
+
+    Returns:
+        Dict of metrics
+
+    """
     if output == "<EMPTY>":
         return {}
 
     bleu = bleu_scorer.sentence_score(output, refs).score / 100
-    rouge = np.mean([
-        rouge_scorer.get_scores(output, r)[0]["rouge-l"]["f"]
-        for r in refs
-    ])
+    rouge = np.mean(
+        [rouge_scorer.get_scores(output, r)[0]["rouge-l"]["f"] for r in refs]
+    )
 
     emb_out = embedder.encode([output], normalize_embeddings=True)
     emb_ref = embedder.encode(refs, normalize_embeddings=True)
@@ -56,17 +74,44 @@ def compute_metrics(output: str, refs: List[str]) -> Dict[str, float]:
         "bertscore": round(bert_f1, 3),
     }
 
+
 # ------------------------------------------------------------------
 # Plotting
 # ------------------------------------------------------------------
 
+
 def aggregate_metrics(metrics_list: List[Dict[str, float]]) -> Dict[str, float]:
+    """
+    aggregate_metrics function.
+    Args:
+        metrics_list:
+
+    Returns:
+
+    """
     return {
         k: round(float(np.mean([m.get(k, 0.0) for m in metrics_list])), 3)
         for k in METRIC_KEYS
     }
 
-def plot_metrics_per_sample(metrics_list: List[Dict[str, float]], cfg, output_dir: str, additional_metrics_list: List[str] = []):
+
+def plot_metrics_per_sample(
+    metrics_list: List[Dict[str, float]],
+    cfg,
+    output_dir: str,
+    additional_metrics_list: List[str] = [],
+):
+    """
+    Plot metrics per sample.
+    Args:
+        metrics_list:
+        cfg:
+        output_dir:
+        additional_metrics_list:
+
+    Returns:
+
+    """
     if not cfg.plotting.enabled or len(metrics_list) < 2:
         return
 
@@ -97,7 +142,24 @@ def plot_metrics_per_sample(metrics_list: List[Dict[str, float]], cfg, output_di
 
     plt.show()
 
-def plot_aggregated(metrics: Dict[str, float], cfg, output_dir: str, additional_metrics_list: List[str] = []):
+
+def plot_aggregated(
+    metrics: Dict[str, float],
+    cfg,
+    output_dir: str,
+    additional_metrics_list: List[str] = [],
+):
+    """
+    Plot aggregated metrics.
+    Args:
+        metrics:
+        cfg:
+        output_dir:
+        additional_metrics_list:
+
+    Returns:
+
+    """
     if not cfg.plotting.enabled:
         return
 

@@ -17,11 +17,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
 
-@hydra.main(
-    config_path="configs",
-    config_name="rag_unstructured",
-    version_base="1.1.0"
-)
+@hydra.main(config_path="configs", config_name="rag_unstructured", version_base="1.1.0")
 def run(cfg: DictConfig):
     logger = setup_logger(path_to_logger=cfg.logging.file)
 
@@ -42,7 +38,7 @@ def run(cfg: DictConfig):
     text_splitter = CharacterTextSplitter(
         separator=cfg.text_splitter.separator,
         chunk_size=cfg.text_splitter.chunk_size,
-        chunk_overlap=cfg.text_splitter.chunk_overlap
+        chunk_overlap=cfg.text_splitter.chunk_overlap,
     )
     splits = text_splitter.split_documents(documents)
 
@@ -54,36 +50,22 @@ def run(cfg: DictConfig):
     # --------------------------------------------------
     # Vector store
     # --------------------------------------------------
-    vectorstore = FAISS.from_documents(
-        documents=splits,
-        embedding=embeddings
-    )
+    vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
 
-    retriever = vectorstore.as_retriever(
-        search_kwargs={"k": cfg.retriever.k}
-    )
+    retriever = vectorstore.as_retriever(search_kwargs={"k": cfg.retriever.k})
 
     # --------------------------------------------------
     # LLM (Ollama)
     # --------------------------------------------------
-    llm = Ollama(
-        model=cfg.llm.model,
-        temperature=cfg.llm.temperature
-    )
+    llm = Ollama(model=cfg.llm.model, temperature=cfg.llm.temperature)
 
     # --------------------------------------------------
     # Prompt
     # --------------------------------------------------
     prompt = ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                cfg.prompt.system
-            ),
-            (
-                "human",
-                "Context:\n{context}\n\nQuestion:\n{question}"
-            )
+            ("system", cfg.prompt.system),
+            ("human", "Context:\n{context}\n\nQuestion:\n{question}"),
         ]
     )
 
@@ -91,10 +73,7 @@ def run(cfg: DictConfig):
     # LCEL RAG Chain
     # --------------------------------------------------
     rag_chain = (
-        {
-            "context": retriever,
-            "question": RunnablePassthrough()
-        }
+        {"context": retriever, "question": RunnablePassthrough()}
         | prompt
         | llm
         | StrOutputParser()

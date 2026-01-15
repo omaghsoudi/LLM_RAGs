@@ -11,6 +11,7 @@ import ollama
 # LLM Judge
 # ------------------------------------------------------------------
 
+
 @torch.no_grad()
 def judge_correctness(
     question: str,
@@ -23,6 +24,17 @@ def judge_correctness(
     """
     Uses an LLM to judge whether an answer is correct.
     Returns a score in [0, 1].
+
+    Args:
+        question:
+        answer:
+        references:
+        cfg:
+        tokenizer:
+        model:
+
+    Returns:
+
     """
 
     if answer == "<EMPTY>":
@@ -31,27 +43,27 @@ def judge_correctness(
     ref_block = "\n".join(f"- {r}" for r in references)
 
     prompt = f"""
-You are a strict factual evaluator.
-
-Question:
-{question}
-
-Reference answers:
-{ref_block}
-
-Model answer:
-{answer}
-
-Task:
-Assign a correctness score between 0 and 1.
-
-Scoring rules:
-- 1.0 = fully correct and consistent with references
-- 0.5 = partially correct or incomplete
-- 0.0 = incorrect or contradicts references
-
-Respond with ONLY a number between 0 and 1.
-"""
+                You are a strict factual evaluator.
+                
+                Question:
+                {question}
+                
+                Reference answers:
+                {ref_block}
+                
+                Model answer:
+                {answer}
+                
+                Task:
+                Assign a correctness score between 0 and 1.
+                
+                Scoring rules:
+                - 1.0 = fully correct and consistent with references
+                - 0.5 = partially correct or incomplete
+                - 0.0 = incorrect or contradicts references
+                
+                Respond with ONLY a number between 0 and 1.
+            """
 
     # ---------------- HF backend ----------------
     if cfg.judge.backend == "hf":

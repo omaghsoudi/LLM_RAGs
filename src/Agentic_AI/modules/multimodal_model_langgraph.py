@@ -24,7 +24,6 @@ from langgraph.graph import StateGraph, END
 from Common_modules.initialize import setup_logger
 
 
-
 """ LangGraph:
 [parse_input]
       ↓
@@ -65,6 +64,7 @@ class AgentState:
 # FLUX.1 TEXT → IMAGE
 # =========================================================
 
+
 class FluxTextToImage:
     def __init__(
         self,
@@ -84,7 +84,11 @@ class FluxTextToImage:
     def generate(self, prompt, out_path="output.png", width=1024, height=1024, steps=4):
         payload = {
             "inputs": prompt,
-            "parameters": {"width": width, "height": height, "num_inference_steps": steps},
+            "parameters": {
+                "width": width,
+                "height": height,
+                "num_inference_steps": steps,
+            },
             "options": {"wait_for_model": True},
         }
         r = requests.post(self.api_url, headers=self.headers, json=payload, timeout=300)
@@ -99,6 +103,7 @@ class FluxTextToImage:
 # =========================================================
 # MULTIMODAL PROCESSOR
 # =========================================================
+
 
 class MultimodalProcessor:
     def __init__(self, image_captioning_model, speech_model, device):
@@ -142,6 +147,7 @@ class MultimodalProcessor:
 # VECTOR STORE
 # =========================================================
 
+
 def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
     if not os.path.exists(chroma_dir):
         raise FileNotFoundError(f"Chroma DB not found at: {chroma_dir}")
@@ -154,7 +160,9 @@ def load_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) ->
     )
 
 
-def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -> Chroma:
+def build_vectorstore(
+    chroma_dir, chroma_collection_name, embed_model, logger
+) -> Chroma:
     embeddings = HuggingFaceEmbeddings(model_name=embed_model)
     vectordb = Chroma(
         collection_name=chroma_collection_name,
@@ -183,6 +191,7 @@ def build_vectorstore(chroma_dir, chroma_collection_name, embed_model, logger) -
 # MULTIMODAL RAG + LANGGRAPH
 # =========================================================
 
+
 class MultimodalRAG:
     def __init__(
         self,
@@ -208,9 +217,13 @@ class MultimodalRAG:
         )
 
         self.vectorstore = (
-            load_vectorstore(chroma_dir, chroma_collection_name, embed_model, self.logger)
+            load_vectorstore(
+                chroma_dir, chroma_collection_name, embed_model, self.logger
+            )
             if load_vector
-            else build_vectorstore(chroma_dir, chroma_collection_name, embed_model, self.logger)
+            else build_vectorstore(
+                chroma_dir, chroma_collection_name, embed_model, self.logger
+            )
         )
 
         self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": k})
@@ -231,8 +244,8 @@ class MultimodalRAG:
                 return fn()
             except Exception as e:
                 state.retry_count += 1
-                time.sleep(2 ** i)
-                self.logger.warning(f"Retry {i+1}: {e}")
+                time.sleep(2**i)
+                self.logger.warning(f"Retry {i + 1}: {e}")
         raise RuntimeError("Failed after retries")
 
     def _build_prompt(self, context, query):
